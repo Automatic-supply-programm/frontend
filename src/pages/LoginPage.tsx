@@ -3,7 +3,7 @@ import { Form, Input, Button, Card, Typography, Alert } from 'antd';
 import { UserOutlined, LockOutlined, InboxOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import type { RootState } from '../app/store';
+import type { RootState, AppDispatch } from '../app/store';
 import { setToken, setUser } from '../features/auth/authSlice';
 import { authApi, useLoginMutation, useGetMeQuery } from '../features/auth/authApi';
 import type { User } from '../types';
@@ -96,7 +96,7 @@ export default function LoginPage() {
 }
 
 export function UserLoader({ children }: { children: React.ReactNode }) {
-  const dispatch = useDispatch();
+  const dispatch = useDispatch<AppDispatch>();
   const token = useSelector((s: RootState) => s.auth.token);
   const user = useSelector((s: RootState) => s.auth.user);
   const { data } = useGetMeQuery(undefined, { skip: !token || !!user });
