@@ -3,9 +3,9 @@ import { Form, Input, Button, Card, Typography, Alert } from 'antd';
 import { UserOutlined, LockOutlined, InboxOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import type { RootState, AppDispatch } from '../app/store';
+import type { RootState } from '../app/store';
 import { setToken, setUser } from '../features/auth/authSlice';
-import { authApi, useLoginMutation, useGetMeQuery } from '../features/auth/authApi';
+import { useLoginMutation, useGetMeQuery } from '../features/auth/authApi';
 import type { User } from '../types';
 
 export default function LoginPage() {
@@ -23,15 +23,6 @@ export default function LoginPage() {
       const res = await login(values).unwrap();
       const tokenStr = typeof res === 'string' ? res : (res as { token?: string }).token ?? String(res);
       dispatch(setToken(tokenStr));
-
-      // Сразу грузим юзера, чтобы сайдбар отобразился без задержки после перехода
-      const meResult = await dispatch(
-        authApi.endpoints.getMe.initiate(undefined, { forceRefetch: true })
-      );
-      if ('data' in meResult && meResult.data) {
-        dispatch(setUser(meResult.data as User));
-      }
-
       navigate('/', { replace: true });
     } catch { /* ошибка показывается через error */ }
   };
@@ -96,13 +87,13 @@ export default function LoginPage() {
 }
 
 export function UserLoader({ children }: { children: React.ReactNode }) {
-  const dispatch = useDispatch<AppDispatch>();
+  const dispatch = useDispatch();
   const token = useSelector((s: RootState) => s.auth.token);
   const user = useSelector((s: RootState) => s.auth.user);
   const { data } = useGetMeQuery(undefined, { skip: !token || !!user });
 
   useEffect(() => {
-    if (data) dispatch(setUser(data));
+    if (data) dispatch(setUser(data as User));
   }, [data, dispatch]);
 
   return <>{children}</>;
