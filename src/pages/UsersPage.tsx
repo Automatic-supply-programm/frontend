@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import {
   Table, Button, Tag, Space, Popconfirm, Typography, Modal, Form,
-  Input, Select, Row, Col, message, Checkbox
+  Input, Select, Row, Col, message, Checkbox, AutoComplete
 } from 'antd';
 import {
   PlusOutlined, EditOutlined, DeleteOutlined,
@@ -13,9 +13,11 @@ import {
   useGetAdminUsersQuery, useGetManagerUsersQuery,
   useCreateUserMutation, useUpdateUserMutation, useDeleteUserMutation,
   useToggleUserAccessMutation, useChangePasswordMutation,
+  useGetWarehousesDirectoryQuery,
 } from '../features/users/usersApi';
 import type { User, Role } from '../types';
 import { ROLE_LABELS } from '../utils/statusLabels';
+import { getApiErrorMessage } from '../utils/apiError';
 import dayjs from 'dayjs';
 
 const ROLE_OPTIONS = Object.entries(ROLE_LABELS).map(([k, v]) => ({ value: k, label: v }));
@@ -43,6 +45,12 @@ export default function UsersPage() {
   const [editForm] = Form.useForm();
   const [pwdForm] = Form.useForm();
 
+  const { data: warehousesDir = [] } = useGetWarehousesDirectoryQuery();
+  const warehouseOptions = warehousesDir.map((w) => ({
+    value: w.warehouseId,
+    label: w.warehouseId,
+  }));
+
   const allUsers = isAdmin ? adminUsers : managerUsers;
   const loading = isAdmin ? loadingAdmin : loadingManager;
 
@@ -66,9 +74,6 @@ export default function UsersPage() {
         productionLineIds: values.productionLineIds
           ? String(values.productionLineIds).split(',').map((s: string) => s.trim()).filter(Boolean)
           : undefined,
-        managedWarehouseIds: values.managedWarehouseIds
-          ? String(values.managedWarehouseIds).split(',').map((s: string) => s.trim()).filter(Boolean)
-          : undefined,
       };
       await createUser(payload).unwrap();
       message.success('Пользователь создан');
@@ -76,7 +81,7 @@ export default function UsersPage() {
       setCreateOpen(false);
     } catch (e: unknown) {
       if ((e as { errorFields?: unknown }).errorFields) return;
-      message.error('Ошибка при создании пользователя');
+      message.error(getApiErrorMessage(e, 'Ошибка при создании пользователя'));
     }
   };
 
@@ -89,16 +94,13 @@ export default function UsersPage() {
         productionLineIds: values.productionLineIds !== undefined
           ? String(values.productionLineIds).split(',').map((s: string) => s.trim()).filter(Boolean)
           : undefined,
-        managedWarehouseIds: values.managedWarehouseIds !== undefined
-          ? String(values.managedWarehouseIds).split(',').map((s: string) => s.trim()).filter(Boolean)
-          : undefined,
       };
       await updateUser({ id: editUser.id, data: payload }).unwrap();
       message.success('Пользователь обновлён');
       setEditUser(null);
     } catch (e: unknown) {
       if ((e as { errorFields?: unknown }).errorFields) return;
-      message.error('Ошибка при обновлении');
+      message.error(getApiErrorMessage(e, 'Ошибка при обновлении'));
     }
   };
 
@@ -112,7 +114,7 @@ export default function UsersPage() {
       setPwdUser(null);
     } catch (e: unknown) {
       if ((e as { errorFields?: unknown }).errorFields) return;
-      message.error('Ошибка при смене пароля');
+      message.error(getApiErrorMessage(e, 'Ошибка при смене пароля'));
     }
   };
 
@@ -124,13 +126,26 @@ export default function UsersPage() {
       role: u.role,
       warehouseId: u.warehouseId ?? '',
       productionLineIds: u.productionLineIds?.join(', ') ?? '',
-      managedWarehouseIds: u.managedWarehouseIds?.join(', ') ?? '',
+      managedWarehouseIds: u.managedWarehouseIds ?? [],
     });
   };
 
   const columns = [
     { title: 'ФИО', dataIndex: 'fullName', key: 'fullName' },
     { title: 'Логин', dataIndex: 'login', key: 'login', width: 130 },
+    ...(isAdmin ? [{
+      title: 'Пароль',
+      key: 'password',
+      width: 160,
+      render: (_: unknown, u: User) => (
+        <Space size="small">
+          <span style={{ color: '#999' }}>Скрыт</span>
+          <Button size="small" icon={<KeyOutlined />} onClick={() => setPwdUser(u)}>
+            Сменить
+          </Button>
+        </Space>
+      ),
+    }] : []),
     {
       title: 'Роль',
       dataIndex: 'role',
@@ -172,7 +187,6 @@ export default function UsersPage() {
       render: (_: unknown, u: User) => (
         <Space size="small" wrap>
           <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(u)} />
-          <Button size="small" icon={<KeyOutlined />} onClick={() => setPwdUser(u)} />
           <Popconfirm
             title={u.active ? 'Приостановить доступ?' : 'Восстановить доступ?'}
             onConfirm={() => toggleAccess({ id: u.id, active: !u.active })}
@@ -280,8 +294,14 @@ export default function UsersPage() {
               const role = getFieldValue('role');
               if (role === 'WORKER') return (
                 <>
-                  <Form.Item name="warehouseId" label="ID склада">
-                    <Input placeholder="Например: WAREHOUSE_001" />
+                  <Form.Item name="warehouseId" label="Склад">
+                    <AutoComplete
+                      options={warehouseOptions}
+                      placeholder="Выберите или введите ID склада"
+                      filterOption={(input, opt) =>
+                        (opt?.value ?? '').toLowerCase().includes(input.toLowerCase())
+                      }
+                    />
                   </Form.Item>
                   <Form.Item name="productionLineIds" label="Производственные участки (через запятую)">
                     <Input placeholder="LINE_001, LINE_002" />
@@ -289,8 +309,16 @@ export default function UsersPage() {
                 </>
               );
               if (role === 'MANAGER') return (
-                <Form.Item name="managedWarehouseIds" label="Подконтрольные склады (через запятую)">
-                  <Input placeholder="WAREHOUSE_001, WAREHOUSE_002" />
+                <Form.Item name="managedWarehouseIds" label="Подконтрольные склады">
+                  <Select
+                    mode="multiple"
+                    options={warehouseOptions}
+                    placeholder="Выберите склады"
+                    filterOption={(input, opt) =>
+                      (opt?.value ?? '').toLowerCase().includes(input.toLowerCase())
+                    }
+                    allowClear
+                  />
                 </Form.Item>
               );
               return null;
@@ -328,8 +356,14 @@ export default function UsersPage() {
               const role = getFieldValue('role');
               if (role === 'WORKER') return (
                 <>
-                  <Form.Item name="warehouseId" label="ID склада">
-                    <Input placeholder="WAREHOUSE_001" />
+                  <Form.Item name="warehouseId" label="Склад">
+                    <AutoComplete
+                      options={warehouseOptions}
+                      placeholder="Выберите или введите ID склада"
+                      filterOption={(input, opt) =>
+                        (opt?.value ?? '').toLowerCase().includes(input.toLowerCase())
+                      }
+                    />
                   </Form.Item>
                   <Form.Item name="productionLineIds" label="Производственные участки (через запятую)">
                     <Input placeholder="LINE_001, LINE_002" />
@@ -337,8 +371,16 @@ export default function UsersPage() {
                 </>
               );
               if (role === 'MANAGER') return (
-                <Form.Item name="managedWarehouseIds" label="Подконтрольные склады (через запятую)">
-                  <Input placeholder="WAREHOUSE_001, WAREHOUSE_002" />
+                <Form.Item name="managedWarehouseIds" label="Подконтрольные склады">
+                  <Select
+                    mode="multiple"
+                    options={warehouseOptions}
+                    placeholder="Выберите склады"
+                    filterOption={(input, opt) =>
+                      (opt?.value ?? '').toLowerCase().includes(input.toLowerCase())
+                    }
+                    allowClear
+                  />
                 </Form.Item>
               );
               return null;

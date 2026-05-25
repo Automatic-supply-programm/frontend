@@ -12,10 +12,12 @@ import type { RootState } from '../app/store';
 import { useGetDashboardQuery, useGetDashboardRecentQuery } from '../features/dashboard/dashboardApi';
 import { useGetMyRequestsQuery, useGetIncomingRequestsQuery, useChangeRequestStatusMutation } from '../features/requests/requestsApi';
 import dayjs from 'dayjs';
-import { ROLE_LABELS, REQUEST_STATUS_LABELS, REQUEST_STATUS_COLOR, REQUEST_TYPE_LABELS } from '../utils/statusLabels';
-import type { Request, RequestType, RequestStatus } from '../types';
+import { ROLE_LABELS, REQUEST_STATUS_LABELS, REQUEST_STATUS_COLOR, REQUEST_TYPE_LABELS, EVENT_TYPE_LABELS, RESULT_LABELS } from '../utils/statusLabels';
+import { getApiErrorMessage } from '../utils/apiError';
+import type { Request, RequestType, RequestStatus, EventLog } from '../types';
 
 type RecentRow = Record<string, unknown>;
+type CardItem = { title: string; value: number | string; icon: React.ReactNode; color: string; suffix?: string };
 
 const { Title } = Typography;
 
@@ -67,8 +69,8 @@ export default function DashboardPage() {
     try {
       await changeStatusMutation(args).unwrap();
       message.success('Статус обновлён');
-    } catch {
-      message.error('Ошибка при изменении статуса');
+    } catch (e) {
+      message.error(getApiErrorMessage(e, 'Ошибка при изменении статуса'));
     }
   };
 
@@ -78,8 +80,13 @@ export default function DashboardPage() {
   const renderCards = () => {
     if (user.role === 'ADMIN') {
       return [
-        { title: 'Пользователей всего', value: stats.totalUsers ?? '—', icon: <TeamOutlined />, color: '#1677ff' },
-        { title: 'Активных пользователей', value: stats.activeUsers ?? '—', icon: <TeamOutlined />, color: '#52c41a' },
+        {
+          title: 'Пользователи',
+          value: stats.totalUsers ?? '—',
+          suffix: stats.activeUsers !== undefined ? ` / ${stats.activeUsers} акт.` : '',
+          icon: <TeamOutlined />,
+          color: '#1677ff',
+        },
         { title: 'Материалов на складе', value: stats.totalMaterials ?? '—', icon: <InboxOutlined />, color: '#722ed1' },
         { title: 'Активных заявок', value: stats.activeRequests ?? '—', icon: <FileTextOutlined />, color: '#fa8c16' },
         { title: 'Дефицит', value: stats.deficitMaterials ?? stats.deficitCount ?? '—', icon: <WarningOutlined />, color: '#f5222d' },
@@ -165,30 +172,49 @@ export default function DashboardPage() {
     { title: 'Событие', dataIndex: 'description', key: 'description' },
   ];
 
+  const workerEventColumns = [
+    { title: 'Дата и время', key: 'timestamp', width: 160,
+      render: (_: unknown, r: EventLog) => {
+        const d = r.timestamp ?? r.createdAt;
+        return d ? dayjs(d).format('DD.MM.YYYY HH:mm') : '—';
+      } },
+    { title: 'Материал', key: 'materialName', width: 180,
+      render: (_: unknown, r: EventLog) => r.materialName ?? '—' },
+    { title: 'Тип операции', key: 'eventType', width: 160,
+      render: (_: unknown, r: EventLog) => EVENT_TYPE_LABELS[r.eventType] ?? r.eventType },
+    { title: 'Количество', key: 'quantity', width: 100,
+      render: (_: unknown, r: EventLog) => r.quantity != null ? r.quantity : '—' },
+    { title: 'Документ', key: 'objectNumber', width: 160,
+      render: (_: unknown, r: EventLog) => r.objectNumber ?? '—' },
+    { title: 'Статус', key: 'result', width: 160,
+      render: (_: unknown, r: EventLog) => r.result ? (RESULT_LABELS[r.result] ?? r.result) : '—' },
+  ];
+
   const quickLinks = () => {
     if (user.role === 'ADMIN') return [
-      { label: 'Пользователи', path: '/users' },
-      { label: 'Склад', path: '/warehouse' },
-      { label: 'Журнал событий', path: '/event-logs' },
-      { label: 'Заявки', path: '/requests' },
+      { label: 'Пользователи', path: '/users', state: undefined },
+      { label: 'Склад', path: '/warehouse', state: undefined },
+      { label: 'Журнал событий', path: '/event-logs', state: undefined },
+      { label: 'Заявки', path: '/requests', state: undefined },
     ];
     if (user.role === 'WORKER') return [
-      { label: 'Склад', path: '/warehouse' },
-      { label: 'Обработать заявки на выдачу', path: '/requests' },
-      { label: 'Оформить поступление', path: '/requests' },
-      { label: 'Создать заявку на пополнение', path: '/requests' },
+      { label: 'Склад', path: '/warehouse', state: undefined },
+      { label: 'Обработать заявки на выдачу', path: '/requests', state: { typeFilter: 'ISSUE', statusFilter: 'UNDER_CONSIDERATION' } },
+      { label: 'Оформить поступление', path: '/requests', state: { openCreate: true, defaultType: 'RECEIPT' } },
+      { label: 'Создать заявку на пополнение', path: '/requests', state: { openCreate: true, defaultType: 'REPLENISHMENT' } },
     ];
     if (user.role === 'EMPLOYEE') return [
-      { label: 'Мои заявки', path: '/requests' },
+      { label: 'Мои заявки', path: '/requests', state: undefined },
     ];
     return [
-      { label: 'Склад', path: '/warehouse' },
-      { label: 'Заявки на пополнение', path: '/requests' },
-      { label: 'Пользователи', path: '/users' },
+      { label: 'Склад', path: '/warehouse', state: undefined },
+      { label: 'Заявки на пополнение', path: '/requests', state: undefined },
+      { label: 'Пользователи', path: '/users', state: undefined },
     ];
   };
 
-  const cards = renderCards();
+  const cards = renderCards() as CardItem[];
+  type QuickLink = { label: string; path: string; state?: unknown };
 
   return (
     <div>
@@ -230,6 +256,7 @@ export default function DashboardPage() {
                 <Statistic
                   title={card.title}
                   value={card.value}
+                  suffix={card.suffix}
                   prefix={<span style={{ color: card.color }}>{card.icon}</span>}
                   styles={{ content: { color: card.color } }}
                 />
@@ -246,6 +273,15 @@ export default function DashboardPage() {
         >
           {recentLoading ? (
             <Spin />
+          ) : user.role === 'WORKER' ? (
+            <Table
+              dataSource={Array.isArray(recentData) ? recentData as unknown as EventLog[] : []}
+              columns={workerEventColumns as Parameters<typeof Table>[0]['columns']}
+              rowKey={(r) => String((r as EventLog).id ?? Math.random())}
+              size="small"
+              pagination={{ pageSize: 10, hideOnSinglePage: true }}
+              locale={{ emptyText: 'Нет данных' }}
+            />
           ) : (
             <Table
               dataSource={Array.isArray(recentData) ? recentData as RecentRow[] : []}
@@ -295,12 +331,12 @@ export default function DashboardPage() {
 
       <Card title="Быстрый переход">
         <Space wrap>
-          {quickLinks().map((link) => (
+          {(quickLinks() as QuickLink[]).map((link) => (
             <Button
-              key={link.path}
+              key={link.label}
               type="default"
               icon={<ArrowRightOutlined />}
-              onClick={() => navigate(link.path)}
+              onClick={() => navigate(link.path, { state: link.state })}
             >
               {link.label}
             </Button>

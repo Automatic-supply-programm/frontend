@@ -1,7 +1,10 @@
-import { Table, Tag, Button, Input, Select, Row, Col, Checkbox, Tooltip, Space } from 'antd';
+import { useState } from 'react';
+import { Table, Tag, Button, Input, Select, Row, Col, Tooltip, Space, Typography } from 'antd';
 import { SearchOutlined, PlusOutlined, FileTextOutlined, ReloadOutlined, EditOutlined } from '@ant-design/icons';
 import type { Material, MaterialStatus } from '../../types';
 import { MATERIAL_STATUS_LABELS, MATERIAL_STATUS_COLOR, MATERIAL_CATEGORY_LABELS } from '../../utils/statusLabels';
+
+type ArchiveMode = 'active' | 'all' | 'only';
 
 interface Props {
   data: Material[];
@@ -16,8 +19,8 @@ interface Props {
   onStatusChange: (v: string) => void;
   warehouseFilter: string;
   onWarehouseChange: (v: string) => void;
-  showArchived: boolean;
-  onShowArchivedChange: (v: boolean) => void;
+  archiveMode: ArchiveMode;
+  onArchiveModeChange: (m: ArchiveMode) => void;
   canAdd: boolean;
   onReset: () => void;
   onEdit?: (material: Material) => void;
@@ -26,12 +29,20 @@ interface Props {
 const CATEGORIES = Object.entries(MATERIAL_CATEGORY_LABELS).map(([k, v]) => ({ value: k, label: v }));
 const STATUSES = Object.entries(MATERIAL_STATUS_LABELS).map(([k, v]) => ({ value: k, label: v }));
 
+const ARCHIVE_OPTIONS = [
+  { value: 'active', label: 'Только активные' },
+  { value: 'all', label: 'Включая архивированные' },
+  { value: 'only', label: 'Только архивированные' },
+];
+
 export default function MaterialsTable({
   data, loading, onRowClick, onAdd,
   search, onSearchChange, categoryFilter, onCategoryChange,
   statusFilter, onStatusChange, warehouseFilter, onWarehouseChange,
-  showArchived, onShowArchivedChange, canAdd, onReset, onEdit,
+  archiveMode, onArchiveModeChange, canAdd, onReset, onEdit,
 }: Props) {
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+
   const columns = [
     { title: 'Артикул', dataIndex: 'article', key: 'article', width: 130 },
     {
@@ -71,7 +82,24 @@ export default function MaterialsTable({
         </Tag>
       ),
     },
-    { title: 'Место хранения', dataIndex: 'storageLocation', key: 'storageLocation' },
+    {
+      title: 'Место хранения',
+      key: 'storageLocation',
+      render: (_: unknown, r: Material) => (
+        <div>
+          {r.storageLocation && <div>{r.storageLocation}</div>}
+          {r.warehouses && r.warehouses.length > 0 && (
+            <div style={{ marginTop: 2 }}>
+              {r.warehouses.map((w) => (
+                <Tag key={w} style={{ fontSize: 11, marginBottom: 2 }}>
+                  <Typography.Text type="secondary" style={{ fontSize: 11 }}>Склад: </Typography.Text>{w}
+                </Tag>
+              ))}
+            </div>
+          )}
+        </div>
+      ),
+    },
     {
       title: 'Действия',
       key: 'actions',
@@ -131,7 +159,7 @@ export default function MaterialsTable({
             options={STATUSES}
           />
         </Col>
-        <Col xs={12} sm={6} md={4}>
+        <Col xs={12} sm={6} md={3}>
           <Input
             placeholder="Склад (ID)"
             value={warehouseFilter}
@@ -139,17 +167,17 @@ export default function MaterialsTable({
             allowClear
           />
         </Col>
-        <Col xs={12} sm={6} md={3} style={{ display: 'flex', alignItems: 'center' }}>
-          <Checkbox
-            checked={showArchived}
-            onChange={(e) => onShowArchivedChange(e.target.checked)}
-          >
-            Архивированные
-          </Checkbox>
+        <Col xs={12} sm={8} md={4}>
+          <Select
+            value={archiveMode}
+            onChange={onArchiveModeChange}
+            style={{ width: '100%' }}
+            options={ARCHIVE_OPTIONS}
+          />
         </Col>
-        <Col xs={12} sm={6} md={3} style={{ display: 'flex', alignItems: 'center' }}>
+        <Col xs={12} sm={4} md={2} style={{ display: 'flex', alignItems: 'center' }}>
           <Button icon={<ReloadOutlined />} onClick={onReset}>
-            Сбросить
+            Сброс
           </Button>
         </Col>
         {canAdd && (
@@ -167,6 +195,10 @@ export default function MaterialsTable({
         rowKey="id"
         loading={loading}
         onRow={(record) => ({ onClick: () => onRowClick(record), style: { cursor: 'pointer' } })}
+        rowSelection={{
+          selectedRowKeys,
+          onChange: setSelectedRowKeys,
+        }}
         size="middle"
         pagination={{ pageSize: 20, showSizeChanger: false }}
         locale={{ emptyText: 'Нет материалов' }}

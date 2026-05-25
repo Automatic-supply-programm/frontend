@@ -121,6 +121,16 @@ export interface EventLog {
   result?: string;
   warehouseId?: string;
   productionLineId?: string;
+  materialName?: string;
+  quantity?: number;
+}
+
+export interface Order {
+  id: string;
+  number: string;
+  description?: string;
+  active: boolean;
+  createdDate?: string;
 }
 
 export interface LoginRequest {

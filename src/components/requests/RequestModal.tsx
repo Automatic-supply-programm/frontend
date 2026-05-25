@@ -14,6 +14,7 @@ import {
   useConfirmRequestMutation,
   useArchiveRequestMutation,
 } from '../../features/requests/requestsApi';
+import { getApiErrorMessage } from '../../utils/apiError';
 import dayjs from 'dayjs';
 
 interface Props {
@@ -38,8 +39,8 @@ export default function RequestModal({ request, open, onClose, userRole, onEdit 
       message.success(`Статус изменён: ${REQUEST_STATUS_LABELS[status]}`);
       setCommentInput('');
       onClose();
-    } catch {
-      message.error('Ошибка при изменении статуса');
+    } catch (e) {
+      message.error(getApiErrorMessage(e, 'Ошибка при изменении статуса'));
     }
   };
 
@@ -48,8 +49,8 @@ export default function RequestModal({ request, open, onClose, userRole, onEdit 
       await confirmRequest(request.id).unwrap();
       message.success('Получение подтверждено');
       onClose();
-    } catch {
-      message.error('Ошибка при подтверждении');
+    } catch (e) {
+      message.error(getApiErrorMessage(e, 'Ошибка при подтверждении'));
     }
   };
 
@@ -58,8 +59,8 @@ export default function RequestModal({ request, open, onClose, userRole, onEdit 
       await archiveRequest(request.id).unwrap();
       message.success('Заявка архивирована');
       onClose();
-    } catch {
-      message.error('Ошибка при архивировании');
+    } catch (e) {
+      message.error(getApiErrorMessage(e, 'Ошибка при архивировании'));
     }
   };
 

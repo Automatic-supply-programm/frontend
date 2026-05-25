@@ -11,6 +11,16 @@ export const usersApi = baseApi.injectEndpoints({
       query: () => '/manager/users',
       providesTags: ['User'],
     }),
+    // Справочник пользователей по роли — доступен всем авторизованным
+    getUsersDirectory: builder.query<User[], string | void>({
+      query: (role) => role ? `/user/list?role=${role}` : '/user/list',
+      providesTags: ['User'],
+    }),
+    // Справочник складов (уникальные warehouseId из профилей активных WORKER'ов)
+    getWarehousesDirectory: builder.query<Array<{ warehouseId: string; workerName: string; workerId: string }>, void>({
+      query: () => '/user/warehouses',
+      providesTags: ['User'],
+    }),
     createUser: builder.mutation<User, CreateUserRequest>({
       query: (body) => ({ url: '/admin/users', method: 'POST', body }),
       invalidatesTags: ['User'],
@@ -42,6 +52,8 @@ export const usersApi = baseApi.injectEndpoints({
 export const {
   useGetAdminUsersQuery,
   useGetManagerUsersQuery,
+  useGetUsersDirectoryQuery,
+  useGetWarehousesDirectoryQuery,
   useCreateUserMutation,
   useUpdateUserMutation,
   useChangePasswordMutation,

@@ -1,10 +1,13 @@
-import { Table, Tag, Button, Input, Select, Row, Col, Checkbox, Tooltip, DatePicker } from 'antd';
-import { SearchOutlined, PlusOutlined, EyeOutlined } from '@ant-design/icons';
-import type { Request, RequestStatus, RequestType } from '../../types';
+import { useState } from 'react';
+import { Table, Tag, Button, Input, Select, Row, Col, Tooltip, DatePicker, Space, Popconfirm, Typography } from 'antd';
+import { SearchOutlined, PlusOutlined, EyeOutlined, CheckOutlined, CloseOutlined, StopOutlined } from '@ant-design/icons';
+import type { Request, RequestStatus, RequestType, Role } from '../../types';
 import { REQUEST_STATUS_LABELS, REQUEST_STATUS_COLOR, REQUEST_TYPE_LABELS } from '../../utils/statusLabels';
 import dayjs from 'dayjs';
 
 const { RangePicker } = DatePicker;
+
+type ArchiveMode = 'active' | 'all' | 'only';
 
 interface Props {
   data: Request[];
@@ -23,22 +26,157 @@ interface Props {
   sourceFilter?: string;
   onSourceChange?: (v: string) => void;
   sourceFilterLabel?: string;
-  showArchived: boolean;
-  onShowArchivedChange: (v: boolean) => void;
+  archiveMode: ArchiveMode;
+  onArchiveModeChange: (m: ArchiveMode) => void;
   addLabel?: string;
+  // роль и inline-действия
+  userRole?: Role;
+  onInlineApprove?: (req: Request) => void;
+  onInlineReject?: (req: Request) => void;
+  onInlineAccept?: (req: Request) => void;
+  onInlineCancel?: (req: Request) => void;
+  onInlineEdit?: (req: Request) => void;
+  onInlineConfirm?: (req: Request) => void;
 }
 
 const TYPE_OPTIONS = Object.entries(REQUEST_TYPE_LABELS).map(([k, v]) => ({ value: k, label: v }));
 const STATUS_OPTIONS = Object.entries(REQUEST_STATUS_LABELS).map(([k, v]) => ({ value: k, label: v }));
+
+const ARCHIVE_OPTIONS = [
+  { value: 'active', label: 'Только активные' },
+  { value: 'all', label: 'Включая архивированные' },
+  { value: 'only', label: 'Только архивированные' },
+];
+
+function renderIssueStatus(status: RequestStatus) {
+  if (status === 'WAITING_CONFIRMATION') {
+    return (
+      <Space size={4} direction="vertical">
+        <Tag color="green">Одобрена</Tag>
+        <Tag color="orange">Не подтверждена</Tag>
+      </Space>
+    );
+  }
+  if (status === 'CONFIRMED') {
+    return (
+      <Space size={4} direction="vertical">
+        <Tag color="green">Одобрена</Tag>
+        <Tag color="green">Подтверждена</Tag>
+      </Space>
+    );
+  }
+  return <Tag color={REQUEST_STATUS_COLOR[status] ?? 'default'}>{REQUEST_STATUS_LABELS[status] ?? status}</Tag>;
+}
 
 export default function RequestsTable({
   data, loading, onRowClick, onAdd, showAdd = false,
   search, onSearchChange, typeFilter, onTypeChange,
   statusFilter, onStatusChange, dateRange, onDateRangeChange,
   sourceFilter, onSourceChange, sourceFilterLabel = 'Склад / участок',
-  showArchived, onShowArchivedChange,
+  archiveMode, onArchiveModeChange,
   addLabel = 'Создать заявку',
+  userRole,
+  onInlineApprove, onInlineReject, onInlineAccept, onInlineCancel, onInlineEdit, onInlineConfirm,
 }: Props) {
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+
+  const renderInlineActions = (r: Request) => {
+    if (!userRole) return null;
+
+    if (userRole === 'WORKER') {
+      const isOwnRequest = r.type === 'RECEIPT' || r.type === 'REPLENISHMENT';
+      if (isOwnRequest) {
+        if (r.status === 'UNDER_CONSIDERATION' || r.status === 'SENT_FOR_REVISION') {
+          return (
+            <Space size={4} wrap>
+              {onInlineEdit && (
+                <Button size="small" onClick={(e) => { e.stopPropagation(); onInlineEdit(r); }}>
+                  Редакт.
+                </Button>
+              )}
+              {onInlineCancel && (
+                <Popconfirm
+                  title="Отменить заявку?"
+                  onConfirm={() => onInlineCancel(r)}
+                  okText="Да"
+                  cancelText="Нет"
+                >
+                  <Button size="small" danger onClick={(e) => e.stopPropagation()}>Отменить</Button>
+                </Popconfirm>
+              )}
+            </Space>
+          );
+        }
+        return null;
+      }
+      // Входящие
+      if (r.status === 'UNDER_CONSIDERATION') {
+        if (r.type === 'RETURN') {
+          return onInlineAccept ? (
+            <Button size="small" type="primary" icon={<CheckOutlined />}
+              onClick={(e) => { e.stopPropagation(); onInlineAccept(r); }}>
+              Принять
+            </Button>
+          ) : null;
+        }
+        return (
+          <Space size={4}>
+            {onInlineApprove && (
+              <Button size="small" type="primary" icon={<CheckOutlined />}
+                onClick={(e) => { e.stopPropagation(); onInlineApprove(r); }}>
+                Одобрить
+              </Button>
+            )}
+            {onInlineReject && (
+              <Button size="small" danger icon={<CloseOutlined />}
+                onClick={(e) => { e.stopPropagation(); onInlineReject(r); }}>
+                Откл.
+              </Button>
+            )}
+          </Space>
+        );
+      }
+      return null;
+    }
+
+    if (userRole === 'EMPLOYEE') {
+      if (r.status === 'UNDER_CONSIDERATION' || r.status === 'SENT_FOR_REVISION') {
+        return (
+          <Space size={4} wrap>
+            {onInlineEdit && (
+              <Button size="small" onClick={(e) => { e.stopPropagation(); onInlineEdit(r); }}>
+                Редакт.
+              </Button>
+            )}
+            {onInlineCancel && (
+              <Popconfirm
+                title="Отменить заявку?"
+                onConfirm={() => onInlineCancel(r)}
+                okText="Да"
+                cancelText="Нет"
+              >
+                <Button size="small" danger icon={<StopOutlined />} onClick={(e) => e.stopPropagation()}>
+                  Отменить
+                </Button>
+              </Popconfirm>
+            )}
+          </Space>
+        );
+      }
+      if (r.status === 'WAITING_CONFIRMATION' && r.type === 'ISSUE') {
+        return onInlineConfirm ? (
+          <Button size="small" type="primary" icon={<CheckOutlined />}
+            onClick={(e) => { e.stopPropagation(); onInlineConfirm(r); }}>
+            Подтвердить
+          </Button>
+        ) : null;
+      }
+      return null;
+    }
+
+    return null;
+  };
+
   const columns = [
     { title: '№', key: 'number', width: 110,
       render: (_: unknown, r: Request) => r.number ?? r.requestNumber ?? r.id?.slice(-6) ?? '—' },
@@ -46,7 +184,7 @@ export default function RequestsTable({
       title: 'Тип',
       dataIndex: 'type',
       key: 'type',
-      width: 150,
+      width: 160,
       render: (v: RequestType) => REQUEST_TYPE_LABELS[v] ?? v,
     },
     {
@@ -58,10 +196,10 @@ export default function RequestsTable({
         return d ? dayjs(d).format('DD.MM.YYYY HH:mm') : '—';
       },
     },
-    { title: 'Заявитель', key: 'requesterName',
+    { title: 'Заявитель', key: 'requesterName', width: 150,
       render: (_: unknown, r: Request) => r.requesterName ?? r.createdByName ?? '—' },
-    { title: 'Источник', dataIndex: 'sourceName', key: 'sourceName' },
-    { title: 'Адресат', dataIndex: 'destinationName', key: 'destinationName' },
+    { title: 'Источник', dataIndex: 'sourceName', key: 'sourceName', width: 130 },
+    { title: 'Адресат', dataIndex: 'destinationName', key: 'destinationName', width: 130 },
     {
       title: 'Позиций',
       key: 'itemsCount',
@@ -74,27 +212,37 @@ export default function RequestsTable({
     },
     {
       title: 'Статус',
-      dataIndex: 'status',
       key: 'status',
-      width: 180,
-      render: (v: RequestStatus) => (
-        <Tag color={REQUEST_STATUS_COLOR[v] ?? 'default'}>
-          {REQUEST_STATUS_LABELS[v] ?? v}
-        </Tag>
-      ),
+      width: 200,
+      render: (_: unknown, r: Request) =>
+        r.type === 'ISSUE'
+          ? renderIssueStatus(r.status)
+          : <Tag color={REQUEST_STATUS_COLOR[r.status] ?? 'default'}>{REQUEST_STATUS_LABELS[r.status] ?? r.status}</Tag>,
     },
     {
-      title: '',
+      title: 'Комментарий',
+      key: 'comment',
+      width: 160,
+      render: (_: unknown, r: Request) =>
+        r.comment
+          ? <Typography.Text ellipsis={{ tooltip: r.comment }} style={{ maxWidth: 140 }}>{r.comment}</Typography.Text>
+          : '—',
+    },
+    {
+      title: 'Действия',
       key: 'actions',
-      width: 60,
+      width: 180,
       render: (_: unknown, record: Request) => (
-        <Tooltip title="Просмотр">
-          <Button
-            size="small"
-            icon={<EyeOutlined />}
-            onClick={(e) => { e.stopPropagation(); onRowClick(record); }}
-          />
-        </Tooltip>
+        <Space size={4}>
+          {renderInlineActions(record)}
+          <Tooltip title="Просмотр">
+            <Button
+              size="small"
+              icon={<EyeOutlined />}
+              onClick={(e) => { e.stopPropagation(); onRowClick(record); }}
+            />
+          </Tooltip>
+        </Space>
       ),
     },
   ];
@@ -156,13 +304,13 @@ export default function RequestsTable({
             />
           </Col>
         )}
-        <Col xs={12} sm={6} md={4} style={{ display: 'flex', alignItems: 'center' }}>
-          <Checkbox
-            checked={showArchived}
-            onChange={(e) => onShowArchivedChange(e.target.checked)}
-          >
-            Архивированные
-          </Checkbox>
+        <Col xs={12} sm={8} md={5}>
+          <Select
+            value={archiveMode}
+            onChange={onArchiveModeChange}
+            style={{ width: '100%' }}
+            options={ARCHIVE_OPTIONS}
+          />
         </Col>
         {showAdd && onAdd && (
           <Col xs={12} sm={6} md={4} style={{ display: 'flex', justifyContent: 'flex-end' }}>
@@ -179,6 +327,10 @@ export default function RequestsTable({
         rowKey="id"
         loading={loading}
         onRow={(record) => ({ onClick: () => onRowClick(record), style: { cursor: 'pointer' } })}
+        rowSelection={{
+          selectedRowKeys,
+          onChange: setSelectedRowKeys,
+        }}
         size="middle"
         pagination={{ pageSize: 20, showSizeChanger: false }}
         locale={{ emptyText: 'Нет заявок' }}

@@ -23,9 +23,9 @@ export const REQUEST_STATUS_COLOR: Record<RequestStatus, string> = {
 };
 
 export const REQUEST_TYPE_LABELS: Record<RequestType, string> = {
-  ISSUE: 'На выдачу',
+  ISSUE: 'На обеспечение',
   REPLENISHMENT: 'На пополнение',
-  RECEIPT: 'Поступление',
+  RECEIPT: 'На оформление поступления',
   RETURN: 'Возврат остатка',
 };
 
@@ -38,8 +38,8 @@ export const MATERIAL_STATUS_LABELS: Record<MaterialStatus, string> = {
 
 export const MATERIAL_STATUS_COLOR: Record<MaterialStatus, string> = {
   NORMAL: 'green',
-  LOW: 'orange',
-  CRITICAL: 'red',
+  LOW: 'gold',
+  CRITICAL: 'orange',
   OUT_OF_STOCK: 'default',
 };
 
@@ -49,6 +49,34 @@ export const MATERIAL_CATEGORY_LABELS: Record<MaterialCategory, string> = {
   SPARE_PART: 'Запчасть',
   EQUIPMENT: 'Оборудование',
   OTHER: 'Прочее',
+};
+
+export const EVENT_TYPE_LABELS: Record<string, string> = {
+  BATCH_RECEIVED: 'Поступление',
+  MATERIALS_ISSUED: 'Выдача',
+  REQUEST_STATUS_CHANGED: 'Смена статуса',
+  REQUEST_CREATED: 'Создание заявки',
+  REQUEST_UPDATED: 'Изменение заявки',
+  REQUEST_ARCHIVED: 'Архивирование заявки',
+  MATERIAL_CREATED: 'Создание материала',
+  MATERIAL_UPDATED: 'Изменение материала',
+  MATERIAL_ARCHIVED: 'Архивирование материала',
+  LOGIN: 'Вход в систему',
+  LOGOUT: 'Выход из системы',
+};
+
+export const RESULT_LABELS: Record<string, string> = {
+  CREATED: 'Создано',
+  UPDATED: 'Обновлено',
+  RECEIVED: 'Получено',
+  CONFIRMED: 'Подтверждено',
+  APPROVED: 'Одобрено',
+  REJECTED: 'Отклонено',
+  ACCEPTED: 'Принято',
+  CANCELLED: 'Отменено',
+  ARCHIVED: 'Архивировано',
+  WAITING_CONFIRMATION: 'Ожидает подтверждения',
+  SENT_FOR_REVISION: 'На доработке',
 };
 
 export const ROLE_LABELS: Record<Role, string> = {

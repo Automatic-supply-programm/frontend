@@ -4,7 +4,7 @@ import { UserOutlined, LockOutlined, InboxOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import type { RootState } from '../app/store';
-import { setToken, setUser } from '../features/auth/authSlice';
+import { setToken, setUser, logout } from '../features/auth/authSlice';
 import { useLoginMutation, useGetMeQuery } from '../features/auth/authApi';
 import type { User } from '../types';
 
@@ -90,11 +90,15 @@ export function UserLoader({ children }: { children: React.ReactNode }) {
   const dispatch = useDispatch();
   const token = useSelector((s: RootState) => s.auth.token);
   const user = useSelector((s: RootState) => s.auth.user);
-  const { data } = useGetMeQuery(undefined, { skip: !token || !!user });
+  const { data, error } = useGetMeQuery(undefined, { skip: !token || !!user });
 
   useEffect(() => {
     if (data) dispatch(setUser(data as User));
   }, [data, dispatch]);
+
+  useEffect(() => {
+    if (error) dispatch(logout());
+  }, [error, dispatch]);
 
   return <>{children}</>;
 }

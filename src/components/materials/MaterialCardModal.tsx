@@ -3,10 +3,12 @@ import {
   Modal, Descriptions, Tag, Button, Form, Input, Select, InputNumber,
   Space, Popconfirm, Divider, Typography, message, DatePicker
 } from 'antd';
-import { EditOutlined, SaveOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
+import { EditOutlined, SaveOutlined, DeleteOutlined, PlusOutlined, HistoryOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import type { Material } from '../../types';
 import { MATERIAL_STATUS_LABELS, MATERIAL_STATUS_COLOR, MATERIAL_CATEGORY_LABELS } from '../../utils/statusLabels';
 import { useUpdateMaterialMutation, useArchiveMaterialMutation, useAddBatchMutation } from '../../features/materials/materialsApi';
+import { getApiErrorMessage } from '../../utils/apiError';
 import BatchHistoryTable from './BatchHistoryTable';
 import CreateRequestForm from '../requests/CreateRequestForm';
 import type { Role } from '../../types';
@@ -23,9 +25,11 @@ interface Props {
 const CATEGORY_OPTIONS = Object.entries(MATERIAL_CATEGORY_LABELS).map(([k, v]) => ({ value: k, label: v }));
 
 export default function MaterialCardModal({ material, open, onClose, userRole, startEditing }: Props) {
+  const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
   const [addingBatch, setAddingBatch] = useState(false);
   const [showReplenishment, setShowReplenishment] = useState(false);
+  const [showIssue, setShowIssue] = useState(false);
   const [form] = Form.useForm();
   const [batchForm] = Form.useForm();
   const [updateMaterial, { isLoading: updating }] = useUpdateMaterialMutation();
@@ -43,9 +47,6 @@ export default function MaterialCardModal({ material, open, onClose, userRole, s
         storageLocation: material.storageLocation,
         description: material.description,
       });
-      setEditing(true);
-    } else if (!open) {
-      setEditing(false);
     }
   }, [open, startEditing, material, form]);
 
@@ -56,6 +57,7 @@ export default function MaterialCardModal({ material, open, onClose, userRole, s
   const canEditBatches = userRole === 'ADMIN';
   const canAddBatch = userRole === 'ADMIN' || userRole === 'WORKER';
   const canReplenish = userRole === 'ADMIN' || userRole === 'WORKER';
+  const canCreateIssue = userRole === 'ADMIN' || userRole === 'EMPLOYEE';
 
   const handleEdit = () => {
     form.setFieldsValue({
@@ -78,7 +80,7 @@ export default function MaterialCardModal({ material, open, onClose, userRole, s
       setEditing(false);
     } catch (e: unknown) {
       if ((e as { errorFields?: unknown }).errorFields) return;
-      message.error('Ошибка при сохранении');
+      message.error(getApiErrorMessage(e, 'Ошибка при сохранении'));
     }
   };
 
@@ -87,8 +89,8 @@ export default function MaterialCardModal({ material, open, onClose, userRole, s
       await archiveMaterial(material.id).unwrap();
       message.success('Материал архивирован');
       onClose();
-    } catch {
-      message.error('Ошибка при архивировании');
+    } catch (e) {
+      message.error(getApiErrorMessage(e, 'Ошибка при архивировании'));
     }
   };
 
@@ -108,7 +110,7 @@ export default function MaterialCardModal({ material, open, onClose, userRole, s
       batchForm.resetFields();
     } catch (e: unknown) {
       if ((e as { errorFields?: unknown }).errorFields) return;
-      message.error('Ошибка при добавлении партии');
+      message.error(getApiErrorMessage(e, 'Ошибка при добавлении партии'));
     }
   };
 
@@ -125,9 +127,22 @@ export default function MaterialCardModal({ material, open, onClose, userRole, s
           <Button onClick={() => setEditing(false)}>Отмена</Button>
         </>
       )}
+      {!editing && canCreateIssue && (
+        <Button icon={<PlusOutlined />} onClick={() => setShowIssue(true)}>
+          Создать заявку на выдачу
+        </Button>
+      )}
       {!editing && canReplenish && (
         <Button icon={<PlusOutlined />} onClick={() => setShowReplenishment(true)}>
           Создать заявку на пополнение
+        </Button>
+      )}
+      {!editing && (
+        <Button
+          icon={<HistoryOutlined />}
+          onClick={() => { onClose(); navigate('/event-logs', { state: { search: material.article } }); }}
+        >
+          История событий
         </Button>
       )}
       {!editing && canArchive && !material.archived && (
@@ -212,6 +227,10 @@ export default function MaterialCardModal({ material, open, onClose, userRole, s
       width={900}
       footer={footer}
       destroyOnClose
+      afterOpenChange={(visible) => {
+        if (visible && startEditing && material) setEditing(true);
+        else if (!visible) setEditing(false);
+      }}
     >
       {infoBlock}
 
@@ -264,6 +283,16 @@ export default function MaterialCardModal({ material, open, onClose, userRole, s
           onClose={() => setShowReplenishment(false)}
           defaultType="REPLENISHMENT"
           allowedTypes={['REPLENISHMENT', 'RECEIPT', 'RETURN']}
+        />
+      )}
+
+      {showIssue && (
+        <CreateRequestForm
+          open={showIssue}
+          onClose={() => setShowIssue(false)}
+          defaultType="ISSUE"
+          allowedTypes={['ISSUE']}
+          defaultMaterial={{ materialId: material.id, materialName: material.name, unit: material.unit }}
         />
       )}
     </Modal>

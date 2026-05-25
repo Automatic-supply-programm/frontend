@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Table, Input, Select, Button, Row, Col, Typography, DatePicker } from 'antd';
 import { SearchOutlined, ReloadOutlined } from '@ant-design/icons';
+import { useLocation } from 'react-router-dom';
 import { useGetEventLogsQuery, useGetEventLogTypesQuery } from '../features/eventLogs/eventLogsApi';
 import { useGetAdminUsersQuery } from '../features/users/usersApi';
 import type { EventLog, Role } from '../types';
@@ -10,7 +11,9 @@ import dayjs from 'dayjs';
 const { RangePicker } = DatePicker;
 
 export default function EventLogsPage() {
-  const [search, setSearch] = useState('');
+  const location = useLocation();
+  const initialSearch = (location.state as { search?: string } | null)?.search ?? '';
+  const [search, setSearch] = useState(initialSearch);
   const [userId, setUserId] = useState('');
   const [userRole, setUserRole] = useState('');
   const [eventType, setEventType] = useState('');
