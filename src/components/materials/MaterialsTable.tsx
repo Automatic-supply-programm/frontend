@@ -1,6 +1,6 @@
-import { Table, Tag, Button, Input, Select, Row, Col, Checkbox, Tooltip } from 'antd';
-import { SearchOutlined, PlusOutlined, FileTextOutlined, ReloadOutlined } from '@ant-design/icons';
-import type { Material, MaterialStatus, MaterialCategory } from '../../types';
+import { Table, Tag, Button, Input, Select, Row, Col, Checkbox, Tooltip, Space } from 'antd';
+import { SearchOutlined, PlusOutlined, FileTextOutlined, ReloadOutlined, EditOutlined } from '@ant-design/icons';
+import type { Material, MaterialStatus } from '../../types';
 import { MATERIAL_STATUS_LABELS, MATERIAL_STATUS_COLOR, MATERIAL_CATEGORY_LABELS } from '../../utils/statusLabels';
 
 interface Props {
@@ -14,10 +14,13 @@ interface Props {
   onCategoryChange: (v: string) => void;
   statusFilter: string;
   onStatusChange: (v: string) => void;
+  warehouseFilter: string;
+  onWarehouseChange: (v: string) => void;
   showArchived: boolean;
   onShowArchivedChange: (v: boolean) => void;
   canAdd: boolean;
   onReset: () => void;
+  onEdit?: (material: Material) => void;
 }
 
 const CATEGORIES = Object.entries(MATERIAL_CATEGORY_LABELS).map(([k, v]) => ({ value: k, label: v }));
@@ -26,19 +29,36 @@ const STATUSES = Object.entries(MATERIAL_STATUS_LABELS).map(([k, v]) => ({ value
 export default function MaterialsTable({
   data, loading, onRowClick, onAdd,
   search, onSearchChange, categoryFilter, onCategoryChange,
-  statusFilter, onStatusChange, showArchived, onShowArchivedChange,
-  canAdd, onReset,
+  statusFilter, onStatusChange, warehouseFilter, onWarehouseChange,
+  showArchived, onShowArchivedChange, canAdd, onReset, onEdit,
 }: Props) {
   const columns = [
     { title: 'Артикул', dataIndex: 'article', key: 'article', width: 130 },
-    { title: 'Наименование', dataIndex: 'name', key: 'name' },
+    {
+      title: 'Наименование',
+      dataIndex: 'name',
+      key: 'name',
+      render: (v: string, r: Material) => (
+        <div>
+          <div>{v}</div>
+          <div style={{ fontSize: 12, color: '#999' }}>{MATERIAL_CATEGORY_LABELS[r.category] ?? r.category}</div>
+        </div>
+      ),
+    },
     { title: 'Ед. изм.', dataIndex: 'unit', key: 'unit', width: 80 },
     {
       title: 'Остаток',
       dataIndex: 'currentStock',
       key: 'currentStock',
-      width: 100,
-      render: (v: number) => v ?? 0,
+      width: 120,
+      render: (v: number, r: Material) => (
+        <div>
+          <div>{v ?? 0}</div>
+          {r.criticalStock != null && (
+            <div style={{ fontSize: 12, color: '#999' }}>мин: {r.criticalStock}</div>
+          )}
+        </div>
+      ),
     },
     {
       title: 'Статус',
@@ -51,26 +71,30 @@ export default function MaterialsTable({
         </Tag>
       ),
     },
-    {
-      title: 'Категория',
-      dataIndex: 'category',
-      key: 'category',
-      width: 160,
-      render: (v: MaterialCategory) => MATERIAL_CATEGORY_LABELS[v] ?? v,
-    },
     { title: 'Место хранения', dataIndex: 'storageLocation', key: 'storageLocation' },
     {
       title: 'Действия',
       key: 'actions',
-      width: 100,
+      width: onEdit ? 130 : 70,
       render: (_: unknown, record: Material) => (
-        <Tooltip title="Карточка">
-          <Button
-            size="small"
-            icon={<FileTextOutlined />}
-            onClick={(e) => { e.stopPropagation(); onRowClick(record); }}
-          />
-        </Tooltip>
+        <Space size="small">
+          <Tooltip title="Карточка">
+            <Button
+              size="small"
+              icon={<FileTextOutlined />}
+              onClick={(e) => { e.stopPropagation(); onRowClick(record); }}
+            />
+          </Tooltip>
+          {onEdit && (
+            <Tooltip title="Редактировать">
+              <Button
+                size="small"
+                icon={<EditOutlined />}
+                onClick={(e) => { e.stopPropagation(); onEdit(record); }}
+              />
+            </Tooltip>
+          )}
+        </Space>
       ),
     },
   ];
@@ -105,6 +129,14 @@ export default function MaterialsTable({
             allowClear
             style={{ width: '100%' }}
             options={STATUSES}
+          />
+        </Col>
+        <Col xs={12} sm={6} md={4}>
+          <Input
+            placeholder="Склад (ID)"
+            value={warehouseFilter}
+            onChange={(e) => onWarehouseChange(e.target.value)}
+            allowClear
           />
         </Col>
         <Col xs={12} sm={6} md={3} style={{ display: 'flex', alignItems: 'center' }}>

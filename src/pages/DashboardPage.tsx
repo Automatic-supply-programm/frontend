@@ -1,4 +1,4 @@
-import { Row, Col, Card, Statistic, Table, Typography, Button, Space, Spin } from 'antd';
+import { Row, Col, Card, Statistic, Table, Typography, Button, Space, Spin, Tag, message } from 'antd';
 import {
   TeamOutlined,
   InboxOutlined,
@@ -10,10 +10,9 @@ import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../app/store';
 import { useGetDashboardQuery, useGetDashboardRecentQuery } from '../features/dashboard/dashboardApi';
-import { useGetMyRequestsQuery, useGetIncomingRequestsQuery } from '../features/requests/requestsApi';
+import { useGetMyRequestsQuery, useGetIncomingRequestsQuery, useChangeRequestStatusMutation } from '../features/requests/requestsApi';
 import dayjs from 'dayjs';
 import { ROLE_LABELS, REQUEST_STATUS_LABELS, REQUEST_STATUS_COLOR, REQUEST_TYPE_LABELS } from '../utils/statusLabels';
-import { Tag } from 'antd';
 import type { Request, RequestType, RequestStatus } from '../types';
 
 type RecentRow = Record<string, unknown>;
@@ -26,15 +25,23 @@ interface DashboardStats {
   activeUsers?: number;
   totalMaterials?: number;
   activeRequests?: number;
-  deficitMaterials?: number;    // backend field name
-  deficitCount?: number;        // alias
+  deficitMaterials?: number;
+  deficitCount?: number;
   // WORKER
-  pendingRequests?: number;     // backend: all incoming requests
+  pendingRequests?: number;
+  pendingReceipts?: number;
+  warehouseId?: string;
+  productionLineIds?: string[];
   // EMPLOYEE
-  myRequests?: number;          // backend field name
+  myRequests?: number;
   underConsideration?: number;
+  waitingConfirmation?: number;
+  rejected?: number;
   // MANAGER
-  pendingApproval?: number;     // backend field name
+  totalReplenishment?: number;
+  pendingApproval?: number;
+  approved?: number;
+  managedWarehouseIds?: string[];
 }
 
 export default function DashboardPage() {
@@ -42,15 +49,28 @@ export default function DashboardPage() {
   const user = useSelector((s: RootState) => s.auth.user);
   const { data: dashData, isLoading } = useGetDashboardQuery();
   const isAdmin = user?.role === 'ADMIN';
+  const isWorker = user?.role === 'WORKER';
   const { data: recentData, isLoading: recentLoading } = useGetDashboardRecentQuery(
-    { limit: 10 }, { skip: !isAdmin }
+    { limit: 10 }, { skip: !isAdmin && !isWorker }
   );
   const { data: myRequests = [], isLoading: myLoading } = useGetMyRequestsQuery(
     {}, { skip: isAdmin || user?.role === 'WORKER' || user?.role === 'MANAGER' }
   );
+  const isManager = user?.role === 'MANAGER';
   const { data: incomingRequests = [], isLoading: incomingLoading } = useGetIncomingRequestsQuery(
-    {}, { skip: isAdmin || user?.role === 'EMPLOYEE' }
+    isManager ? { type: 'REPLENISHMENT' } : {},
+    { skip: isAdmin || user?.role === 'EMPLOYEE' }
   );
+
+  const [changeStatusMutation] = useChangeRequestStatusMutation();
+  const changeStatus = async (args: { id: string; status: RequestStatus }) => {
+    try {
+      await changeStatusMutation(args).unwrap();
+      message.success('Статус обновлён');
+    } catch {
+      message.error('Ошибка при изменении статуса');
+    }
+  };
 
   if (!user) return null;
   const stats = (dashData ?? {}) as DashboardStats;
@@ -67,20 +87,26 @@ export default function DashboardPage() {
     }
     if (user.role === 'WORKER') {
       return [
-        { title: 'Входящих заявок', value: stats.pendingRequests ?? '—', icon: <FileTextOutlined />, color: '#fa8c16' },
+        { title: 'Заявки на обеспечение', value: stats.pendingRequests ?? '—', icon: <FileTextOutlined />, color: '#fa8c16' },
+        { title: 'Поступления', value: stats.pendingReceipts ?? '—', icon: <InboxOutlined />, color: '#1677ff' },
         { title: 'Материалов на складе', value: stats.totalMaterials ?? '—', icon: <InboxOutlined />, color: '#722ed1' },
         { title: 'Дефицит', value: stats.deficitMaterials ?? stats.deficitCount ?? '—', icon: <WarningOutlined />, color: '#f5222d' },
       ];
     }
     if (user.role === 'EMPLOYEE') {
       return [
-        { title: 'Всего моих заявок', value: stats.myRequests ?? '—', icon: <FileTextOutlined />, color: '#1677ff' },
+        { title: 'Всего активных заявок', value: stats.myRequests ?? '—', icon: <FileTextOutlined />, color: '#1677ff' },
         { title: 'На рассмотрении', value: stats.underConsideration ?? '—', icon: <FileTextOutlined />, color: '#fa8c16' },
+        { title: 'Ожидают подтверждения', value: stats.waitingConfirmation ?? '—', icon: <FileTextOutlined />, color: '#fa8c16' },
+        { title: 'Отклонено', value: stats.rejected ?? '—', icon: <WarningOutlined />, color: '#f5222d' },
       ];
     }
     // MANAGER
     return [
-      { title: 'Входящих заявок', value: stats.pendingApproval ?? '—', icon: <FileTextOutlined />, color: '#1677ff' },
+      { title: 'Заявки на пополнение', value: stats.totalReplenishment ?? '—', icon: <FileTextOutlined />, color: '#1677ff' },
+      { title: 'На рассмотрении', value: stats.pendingApproval ?? '—', icon: <FileTextOutlined />, color: '#fa8c16' },
+      { title: 'Одобрено', value: stats.approved ?? '—', icon: <FileTextOutlined />, color: '#52c41a' },
+      { title: 'Отклонено', value: stats.rejected ?? '—', icon: <WarningOutlined />, color: '#f5222d' },
       { title: 'Дефицит материалов', value: stats.deficitMaterials ?? stats.deficitCount ?? '—', icon: <WarningOutlined />, color: '#f5222d' },
     ];
   };
@@ -99,6 +125,32 @@ export default function DashboardPage() {
       render: (v: RequestStatus) => (
         <Tag color={REQUEST_STATUS_COLOR[v] ?? 'default'}>{REQUEST_STATUS_LABELS[v] ?? v}</Tag>
       ) },
+    ...(isManager ? [{
+      title: '',
+      key: 'managerActions',
+      width: 160,
+      render: (_: unknown, r: Request) => {
+        if (r.status !== 'UNDER_CONSIDERATION') return null;
+        return (
+          <Space size="small">
+            <Button
+              size="small"
+              type="primary"
+              onClick={(e) => { e.stopPropagation(); changeStatus({ id: r.id, status: 'APPROVED' }); }}
+            >
+              Одобрить
+            </Button>
+            <Button
+              size="small"
+              danger
+              onClick={(e) => { e.stopPropagation(); changeStatus({ id: r.id, status: 'REJECTED' }); }}
+            >
+              Отклонить
+            </Button>
+          </Space>
+        );
+      },
+    }] : []),
   ];
 
   const adminEventColumns = [
@@ -121,8 +173,10 @@ export default function DashboardPage() {
       { label: 'Заявки', path: '/requests' },
     ];
     if (user.role === 'WORKER') return [
-      { label: 'Перейти к складу', path: '/warehouse' },
-      { label: 'Обработать заявки', path: '/requests' },
+      { label: 'Склад', path: '/warehouse' },
+      { label: 'Обработать заявки на выдачу', path: '/requests' },
+      { label: 'Оформить поступление', path: '/requests' },
+      { label: 'Создать заявку на пополнение', path: '/requests' },
     ];
     if (user.role === 'EMPLOYEE') return [
       { label: 'Мои заявки', path: '/requests' },
@@ -139,6 +193,32 @@ export default function DashboardPage() {
   return (
     <div>
       <Title level={4} style={{ marginBottom: 20 }}>Главная</Title>
+
+      {user.role === 'WORKER' && !isLoading && (stats.warehouseId || stats.productionLineIds?.length) && (
+        <Card style={{ marginBottom: 16 }}>
+          <Space wrap>
+            {stats.warehouseId && (
+              <span><Typography.Text type="secondary">Склад:</Typography.Text>{' '}
+                <Tag color="blue">{stats.warehouseId}</Tag>
+              </span>
+            )}
+            {stats.productionLineIds && stats.productionLineIds.length > 0 && (
+              <span><Typography.Text type="secondary">Производственные участки:</Typography.Text>{' '}
+                {stats.productionLineIds.map((id) => <Tag key={id}>{id}</Tag>)}
+              </span>
+            )}
+          </Space>
+        </Card>
+      )}
+
+      {user.role === 'MANAGER' && !isLoading && stats.managedWarehouseIds && stats.managedWarehouseIds.length > 0 && (
+        <Card style={{ marginBottom: 16 }}>
+          <Space wrap>
+            <Typography.Text type="secondary">Подконтрольные склады:</Typography.Text>
+            {stats.managedWarehouseIds.map((id) => <Tag key={id} color="purple">{id}</Tag>)}
+          </Space>
+        </Card>
+      )}
 
       {isLoading ? (
         <Spin />
@@ -159,8 +239,11 @@ export default function DashboardPage() {
         </Row>
       )}
 
-      {user.role === 'ADMIN' && (
-        <Card title="Последние действия пользователей" style={{ marginBottom: 24 }}>
+      {(user.role === 'ADMIN' || user.role === 'WORKER') && (
+        <Card
+          title={user.role === 'ADMIN' ? 'Последние действия пользователей' : 'Последние складские операции'}
+          style={{ marginBottom: 24 }}
+        >
           {recentLoading ? (
             <Spin />
           ) : (

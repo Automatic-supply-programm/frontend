@@ -8,7 +8,7 @@ interface RequestsFilter {
   status?: string;
   startDate?: string;
   endDate?: string;
-  warehouseId?: string;
+  sourceId?: string;
 }
 
 export const requestsApi = baseApi.injectEndpoints({
@@ -28,6 +28,7 @@ export const requestsApi = baseApi.injectEndpoints({
         if (params.status) q.set('status', params.status);
         if (params.startDate) q.set('startDate', params.startDate);
         if (params.endDate) q.set('endDate', params.endDate);
+        if (params.sourceId) q.set('sourceId', params.sourceId);
         return `/requests/all?${q.toString()}`;
       },
       providesTags: ['Request'],
@@ -40,6 +41,7 @@ export const requestsApi = baseApi.injectEndpoints({
         if (params.status) q.set('status', params.status);
         if (params.startDate) q.set('startDate', params.startDate);
         if (params.endDate) q.set('endDate', params.endDate);
+        if (params.sourceId) q.set('sourceId', params.sourceId);
         return `/requests/incoming?${q.toString()}`;
       },
       providesTags: ['Request'],
@@ -66,7 +68,7 @@ export const requestsApi = baseApi.injectEndpoints({
     }),
     archiveRequest: builder.mutation<void, string>({
       query: (id) => ({ url: `/requests/${id}/archive`, method: 'POST' }),
-      invalidatesTags: ['Request'],
+      invalidatesTags: ['Request', 'Dashboard'],
     }),
   }),
 });

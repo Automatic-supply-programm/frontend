@@ -63,7 +63,7 @@ export default function RequestModal({ request, open, onClose, userRole, onEdit 
     }
   };
 
-  const archivableStatuses: RequestStatus[] = ['CONFIRMED', 'REJECTED', 'CANCELLED'];
+  const archivableStatuses: RequestStatus[] = ['CONFIRMED', 'ACCEPTED', 'APPROVED', 'REJECTED', 'SENT_FOR_REVISION', 'CANCELLED'];
   const canArchive = !request.archived && archivableStatuses.includes(request.status);
 
   const renderActions = () => {
@@ -71,36 +71,77 @@ export default function RequestModal({ request, open, onClose, userRole, onEdit 
     const loading = changing || confirming;
 
     if (userRole === 'WORKER') {
-      if (status === 'UNDER_CONSIDERATION') return (
-        <Space wrap>
-          <Input.TextArea
-            placeholder="Комментарий (необязательно)"
-            value={commentInput}
-            onChange={(e) => setCommentInput(e.target.value)}
-            rows={1}
-            style={{ width: 240 }}
-          />
-          <Button type="primary" icon={<CheckOutlined />} loading={loading}
-            onClick={() => doChangeStatus('APPROVED')}>Одобрить</Button>
-          <Button danger icon={<CloseOutlined />} loading={loading}
-            onClick={() => doChangeStatus('REJECTED')}>Отклонить</Button>
-        </Space>
-      );
+      const isOwnRequest = request.type === 'RECEIPT' || request.type === 'REPLENISHMENT';
+      if (isOwnRequest) {
+        if (status === 'UNDER_CONSIDERATION' || status === 'SENT_FOR_REVISION') return (
+          <Space wrap>
+            {onEdit && <Button icon={<EditOutlined />} onClick={onEdit}>Редактировать</Button>}
+            <Popconfirm title="Отменить заявку?" onConfirm={() => doChangeStatus('CANCELLED')} okText="Да" cancelText="Нет">
+              <Button danger icon={<StopOutlined />} loading={loading}>Отменить</Button>
+            </Popconfirm>
+          </Space>
+        );
+        return null;
+      }
+      if (status === 'UNDER_CONSIDERATION') {
+        const isReturn = request.type === 'RETURN';
+        if (isReturn) {
+          return (
+            <Space wrap>
+              <Input.TextArea
+                placeholder="Комментарий (необязательно)"
+                value={commentInput}
+                onChange={(e) => setCommentInput(e.target.value)}
+                rows={1}
+                style={{ width: 240 }}
+              />
+              <Button type="primary" icon={<CheckOutlined />} loading={loading}
+                onClick={() => doChangeStatus('ACCEPTED')}>Принять</Button>
+            </Space>
+          );
+        }
+        return (
+          <Space wrap>
+            <Input.TextArea
+              placeholder="Комментарий (необязательно)"
+              value={commentInput}
+              onChange={(e) => setCommentInput(e.target.value)}
+              rows={1}
+              style={{ width: 240 }}
+            />
+            <Button type="primary" icon={<CheckOutlined />} loading={loading}
+              onClick={() => doChangeStatus('APPROVED')}>Одобрить</Button>
+            <Button danger icon={<CloseOutlined />} loading={loading}
+              onClick={() => doChangeStatus('REJECTED')}>Отклонить</Button>
+          </Space>
+        );
+      }
     }
 
     if (userRole === 'EMPLOYEE') {
-      if (status === 'UNDER_CONSIDERATION' || status === 'SENT_FOR_REVISION') return (
+      const cancellable = status !== 'CONFIRMED' && status !== 'CANCELLED';
+      const editable = status === 'UNDER_CONSIDERATION' || status === 'SENT_FOR_REVISION';
+      if (status === 'WAITING_CONFIRMATION') return (
         <Space wrap>
-          {onEdit && <Button icon={<EditOutlined />} onClick={onEdit}>Редактировать</Button>}
-          <Popconfirm title="Отменить заявку?" onConfirm={() => doChangeStatus('CANCELLED')} okText="Да" cancelText="Нет">
-            <Button danger icon={<StopOutlined />} loading={loading}>Отменить</Button>
+          <Popconfirm title="Подтвердить получение материалов?" onConfirm={doConfirm} okText="Подтвердить" cancelText="Нет">
+            <Button type="primary" icon={<CheckOutlined />} loading={loading}>Подтвердить получение</Button>
           </Popconfirm>
+          {cancellable && (
+            <Popconfirm title="Отменить заявку?" onConfirm={() => doChangeStatus('CANCELLED')} okText="Да" cancelText="Нет">
+              <Button danger icon={<StopOutlined />} loading={loading}>Отменить</Button>
+            </Popconfirm>
+          )}
         </Space>
       );
-      if (status === 'WAITING_CONFIRMATION') return (
-        <Popconfirm title="Подтвердить получение материалов?" onConfirm={doConfirm} okText="Подтвердить" cancelText="Нет">
-          <Button type="primary" icon={<CheckOutlined />} loading={loading}>Подтвердить получение</Button>
-        </Popconfirm>
+      if (editable || cancellable) return (
+        <Space wrap>
+          {editable && onEdit && <Button icon={<EditOutlined />} onClick={onEdit}>Редактировать</Button>}
+          {cancellable && (
+            <Popconfirm title="Отменить заявку?" onConfirm={() => doChangeStatus('CANCELLED')} okText="Да" cancelText="Нет">
+              <Button danger icon={<StopOutlined />} loading={loading}>Отменить</Button>
+            </Popconfirm>
+          )}
+        </Space>
       );
     }
 
@@ -154,6 +195,8 @@ export default function RequestModal({ request, open, onClose, userRole, onEdit 
     { title: 'Материал', dataIndex: 'materialName', key: 'materialName' },
     { title: 'Количество', dataIndex: 'quantity', key: 'quantity', width: 110 },
     { title: 'Ед. изм.', dataIndex: 'unit', key: 'unit', width: 80 },
+    { title: 'Размещение', dataIndex: 'exactLocation', key: 'exactLocation', width: 150,
+      render: (v: string) => v ?? '—' },
   ];
 
   return (

@@ -8,6 +8,7 @@ export const REQUEST_STATUS_LABELS: Record<RequestStatus, string> = {
   REJECTED: 'Отклонена',
   SENT_FOR_REVISION: 'На доработке',
   CANCELLED: 'Отменена',
+  ACCEPTED: 'Принята',
 };
 
 export const REQUEST_STATUS_COLOR: Record<RequestStatus, string> = {
@@ -18,6 +19,7 @@ export const REQUEST_STATUS_COLOR: Record<RequestStatus, string> = {
   REJECTED: 'red',
   SENT_FOR_REVISION: 'gold',
   CANCELLED: 'default',
+  ACCEPTED: 'cyan',
 };
 
 export const REQUEST_TYPE_LABELS: Record<RequestType, string> = {

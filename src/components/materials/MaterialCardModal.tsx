@@ -1,13 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Modal, Descriptions, Tag, Button, Form, Input, Select, InputNumber,
   Space, Popconfirm, Divider, Typography, message, DatePicker
 } from 'antd';
-import { EditOutlined, SaveOutlined, DeleteOutlined } from '@ant-design/icons';
+import { EditOutlined, SaveOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import type { Material } from '../../types';
 import { MATERIAL_STATUS_LABELS, MATERIAL_STATUS_COLOR, MATERIAL_CATEGORY_LABELS } from '../../utils/statusLabels';
 import { useUpdateMaterialMutation, useArchiveMaterialMutation, useAddBatchMutation } from '../../features/materials/materialsApi';
 import BatchHistoryTable from './BatchHistoryTable';
+import CreateRequestForm from '../requests/CreateRequestForm';
 import type { Role } from '../../types';
 import dayjs from 'dayjs';
 
@@ -16,18 +17,37 @@ interface Props {
   open: boolean;
   onClose: () => void;
   userRole: Role;
+  startEditing?: boolean;
 }
 
 const CATEGORY_OPTIONS = Object.entries(MATERIAL_CATEGORY_LABELS).map(([k, v]) => ({ value: k, label: v }));
 
-export default function MaterialCardModal({ material, open, onClose, userRole }: Props) {
+export default function MaterialCardModal({ material, open, onClose, userRole, startEditing }: Props) {
   const [editing, setEditing] = useState(false);
   const [addingBatch, setAddingBatch] = useState(false);
+  const [showReplenishment, setShowReplenishment] = useState(false);
   const [form] = Form.useForm();
   const [batchForm] = Form.useForm();
   const [updateMaterial, { isLoading: updating }] = useUpdateMaterialMutation();
   const [archiveMaterial, { isLoading: archiving }] = useArchiveMaterialMutation();
   const [addBatch, { isLoading: addingBatchLoading }] = useAddBatchMutation();
+
+  useEffect(() => {
+    if (open && startEditing && material) {
+      form.setFieldsValue({
+        name: material.name,
+        article: material.article,
+        category: material.category,
+        unit: material.unit,
+        criticalStock: material.criticalStock,
+        storageLocation: material.storageLocation,
+        description: material.description,
+      });
+      setEditing(true);
+    } else if (!open) {
+      setEditing(false);
+    }
+  }, [open, startEditing, material, form]);
 
   if (!material) return null;
 
@@ -35,6 +55,7 @@ export default function MaterialCardModal({ material, open, onClose, userRole }:
   const canArchive = userRole === 'ADMIN';
   const canEditBatches = userRole === 'ADMIN';
   const canAddBatch = userRole === 'ADMIN' || userRole === 'WORKER';
+  const canReplenish = userRole === 'ADMIN' || userRole === 'WORKER';
 
   const handleEdit = () => {
     form.setFieldsValue({
@@ -52,7 +73,7 @@ export default function MaterialCardModal({ material, open, onClose, userRole }:
   const handleSave = async () => {
     try {
       const values = await form.validateFields();
-      await updateMaterial({ id: material.id, data: values }).unwrap();
+      await updateMaterial({ id: material.id, data: { ...values, warehouses: material.warehouses } }).unwrap();
       message.success('Карточка обновлена');
       setEditing(false);
     } catch (e: unknown) {
@@ -104,6 +125,11 @@ export default function MaterialCardModal({ material, open, onClose, userRole }:
           <Button onClick={() => setEditing(false)}>Отмена</Button>
         </>
       )}
+      {!editing && canReplenish && (
+        <Button icon={<PlusOutlined />} onClick={() => setShowReplenishment(true)}>
+          Создать заявку на пополнение
+        </Button>
+      )}
       {!editing && canArchive && !material.archived && (
         <Popconfirm
           title="Архивировать материал?"
@@ -135,7 +161,7 @@ export default function MaterialCardModal({ material, open, onClose, userRole }:
       <Form.Item name="criticalStock" label="Критический остаток">
         <InputNumber min={0} style={{ width: '100%' }} />
       </Form.Item>
-      <Form.Item name="storageLocation" label="Место хранения">
+      <Form.Item name="storageLocation" label="Место хранения *" rules={[{ required: true, message: 'Введите место хранения' }]}>
         <Input />
       </Form.Item>
       <Form.Item name="description" label="Описание">
@@ -231,6 +257,15 @@ export default function MaterialCardModal({ material, open, onClose, userRole }:
           )}
         </Form>
       </Modal>
+
+      {showReplenishment && (
+        <CreateRequestForm
+          open={showReplenishment}
+          onClose={() => setShowReplenishment(false)}
+          defaultType="REPLENISHMENT"
+          allowedTypes={['REPLENISHMENT', 'RECEIPT', 'RETURN']}
+        />
+      )}
     </Modal>
   );
 }

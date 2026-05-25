@@ -3,6 +3,7 @@ import type { EventLog } from '../../types';
 
 interface EventLogsFilter {
   userId?: string;
+  userRole?: string;
   eventType?: string;
   startDate?: string;
   endDate?: string;
@@ -15,6 +16,7 @@ export const eventLogsApi = baseApi.injectEndpoints({
       query: (params = {}) => {
         const q = new URLSearchParams();
         if (params.userId) q.set('userId', params.userId);
+        if (params.userRole) q.set('userRole', params.userRole);
         if (params.eventType) q.set('eventType', params.eventType);
         if (params.startDate) q.set('startDate', params.startDate);
         if (params.endDate) q.set('endDate', params.endDate);
@@ -26,11 +28,13 @@ export const eventLogsApi = baseApi.injectEndpoints({
     getEventLogTypes: builder.query<string[], void>({
       query: () => '/event-logs/types',
     }),
-    getManagerEventLogs: builder.query<EventLog[], { startDate?: string; endDate?: string }>({
+    getManagerEventLogs: builder.query<EventLog[], { startDate?: string; endDate?: string; eventType?: string; userId?: string }>({
       query: (params = {}) => {
         const q = new URLSearchParams();
         if (params.startDate) q.set('startDate', params.startDate);
         if (params.endDate) q.set('endDate', params.endDate);
+        if (params.eventType) q.set('eventType', params.eventType);
+        if (params.userId) q.set('userId', params.userId);
         return `/manager/event-logs?${q.toString()}`;
       },
       providesTags: ['EventLog'],

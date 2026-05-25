@@ -1,8 +1,10 @@
-import { Table, Tag, Button, Input, Select, Row, Col, Checkbox, Tooltip } from 'antd';
+import { Table, Tag, Button, Input, Select, Row, Col, Checkbox, Tooltip, DatePicker } from 'antd';
 import { SearchOutlined, PlusOutlined, EyeOutlined } from '@ant-design/icons';
 import type { Request, RequestStatus, RequestType } from '../../types';
 import { REQUEST_STATUS_LABELS, REQUEST_STATUS_COLOR, REQUEST_TYPE_LABELS } from '../../utils/statusLabels';
 import dayjs from 'dayjs';
+
+const { RangePicker } = DatePicker;
 
 interface Props {
   data: Request[];
@@ -16,6 +18,11 @@ interface Props {
   onTypeChange: (v: string) => void;
   statusFilter: string;
   onStatusChange: (v: string) => void;
+  dateRange?: [string, string] | null;
+  onDateRangeChange?: (range: [string, string] | null) => void;
+  sourceFilter?: string;
+  onSourceChange?: (v: string) => void;
+  sourceFilterLabel?: string;
   showArchived: boolean;
   onShowArchivedChange: (v: boolean) => void;
   addLabel?: string;
@@ -27,7 +34,9 @@ const STATUS_OPTIONS = Object.entries(REQUEST_STATUS_LABELS).map(([k, v]) => ({ 
 export default function RequestsTable({
   data, loading, onRowClick, onAdd, showAdd = false,
   search, onSearchChange, typeFilter, onTypeChange,
-  statusFilter, onStatusChange, showArchived, onShowArchivedChange,
+  statusFilter, onStatusChange, dateRange, onDateRangeChange,
+  sourceFilter, onSourceChange, sourceFilterLabel = 'Склад / участок',
+  showArchived, onShowArchivedChange,
   addLabel = 'Создать заявку',
 }: Props) {
   const columns = [
@@ -122,6 +131,31 @@ export default function RequestsTable({
             options={STATUS_OPTIONS}
           />
         </Col>
+        {onSourceChange && (
+          <Col xs={12} sm={6} md={4}>
+            <Input
+              placeholder={sourceFilterLabel}
+              value={sourceFilter}
+              onChange={(e) => onSourceChange(e.target.value)}
+              allowClear
+            />
+          </Col>
+        )}
+        {onDateRangeChange && (
+          <Col xs={24} sm={12} md={6}>
+            <RangePicker
+              style={{ width: '100%' }}
+              value={dateRange ? [dayjs(dateRange[0]), dayjs(dateRange[1])] : null}
+              onChange={(dates) => {
+                if (dates && dates[0] && dates[1]) {
+                  onDateRangeChange([dates[0].format('YYYY-MM-DD'), dates[1].format('YYYY-MM-DD')]);
+                } else {
+                  onDateRangeChange(null);
+                }
+              }}
+            />
+          </Col>
+        )}
         <Col xs={12} sm={6} md={4} style={{ display: 'flex', alignItems: 'center' }}>
           <Checkbox
             checked={showArchived}

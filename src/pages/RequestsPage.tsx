@@ -21,8 +21,11 @@ export default function RequestsPage() {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [sourceId, setSourceId] = useState('');
+  const [dateRange, setDateRange] = useState<[string, string] | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<Request | null>(null);
+  const [editingRequest, setEditingRequest] = useState<Request | null>(null);
   const [showCreate, setShowCreate] = useState(false);
 
   const skipAdmin = user?.role !== 'ADMIN';
@@ -31,19 +34,27 @@ export default function RequestsPage() {
   const skipManager = user?.role !== 'MANAGER';
 
   const { data: allRequests = [], isLoading: loadingAll } = useGetAllRequestsQuery(
-    { archived: showArchived || undefined, search: search || undefined, type: typeFilter || undefined, status: statusFilter || undefined },
+    {
+      archived: showArchived || undefined,
+      search: search || undefined,
+      type: typeFilter || undefined,
+      status: statusFilter || undefined,
+      sourceId: sourceId || undefined,
+      startDate: dateRange?.[0],
+      endDate: dateRange?.[1],
+    },
     { skip: skipAdmin }
   );
   const { data: myRequests = [], isLoading: loadingMy } = useGetMyRequestsQuery(
     { archived: showArchived },
-    { skip: skipEmployee }
+    { skip: skipEmployee && skipWorker }
   );
   const { data: incomingWorker = [], isLoading: loadingIncomingW } = useGetIncomingRequestsQuery(
-    { type: typeFilter || undefined, status: statusFilter || undefined },
+    { type: typeFilter || undefined, status: statusFilter || undefined, sourceId: sourceId || undefined, startDate: dateRange?.[0], endDate: dateRange?.[1] },
     { skip: skipWorker }
   );
   const { data: incomingManager = [], isLoading: loadingIncomingM } = useGetIncomingRequestsQuery(
-    { type: typeFilter || undefined, status: statusFilter || undefined },
+    { type: typeFilter || undefined, status: statusFilter || undefined, sourceId: sourceId || undefined, startDate: dateRange?.[0], endDate: dateRange?.[1] },
     { skip: skipManager }
   );
 
@@ -51,14 +62,24 @@ export default function RequestsPage() {
 
   const { data, loading } = (() => {
     if (user.role === 'ADMIN') return { data: allRequests, loading: loadingAll };
-    if (user.role === 'WORKER') return { data: incomingWorker, loading: loadingIncomingW };
+    if (user.role === 'WORKER') {
+      // WORKER видит как входящие (ISSUE/RETURN от участков), так и свои созданные (RECEIPT/REPLENISHMENT)
+      const combined = [...incomingWorker];
+      myRequests.forEach((r) => {
+        if (!combined.find((c) => c.id === r.id)) combined.push(r);
+      });
+      return { data: combined, loading: loadingIncomingW || loadingMy };
+    }
     if (user.role === 'EMPLOYEE') return { data: myRequests, loading: loadingMy };
     return { data: incomingManager, loading: loadingIncomingM };
   })();
 
   const allowedTypes = user.role === 'WORKER' ? WORKER_TYPES
     : user.role === 'EMPLOYEE' ? EMPLOYEE_TYPES
+    : user.role === 'MANAGER' ? ([] as RequestType[])
     : ADMIN_TYPES;
+
+  const canCreate = user.role !== 'MANAGER';
 
   const pageTitle = user.role === 'MANAGER' ? 'Заявки и поступления'
     : user.role === 'WORKER' ? 'Заявки и поступления'
@@ -86,13 +107,18 @@ export default function RequestsPage() {
         loading={loading}
         onRowClick={setSelectedRequest}
         onAdd={() => setShowCreate(true)}
-        showAdd={true}
+        showAdd={canCreate}
         search={search}
         onSearchChange={setSearch}
         typeFilter={typeFilter}
         onTypeChange={setTypeFilter}
         statusFilter={statusFilter}
         onStatusChange={setStatusFilter}
+        sourceFilter={sourceId}
+        onSourceChange={setSourceId}
+        sourceFilterLabel={user.role === 'WORKER' ? 'Участок (ID)' : 'Склад (ID)'}
+        dateRange={dateRange}
+        onDateRangeChange={setDateRange}
         showArchived={showArchived}
         onShowArchivedChange={setShowArchived}
       />
@@ -102,13 +128,25 @@ export default function RequestsPage() {
         open={!!selectedRequest}
         onClose={() => setSelectedRequest(null)}
         userRole={user.role}
+        onEdit={() => { setEditingRequest(selectedRequest); setSelectedRequest(null); }}
       />
 
-      <CreateRequestForm
-        open={showCreate}
-        onClose={() => setShowCreate(false)}
-        allowedTypes={allowedTypes}
-      />
+      {canCreate && allowedTypes.length > 0 && (
+        <CreateRequestForm
+          open={showCreate}
+          onClose={() => setShowCreate(false)}
+          allowedTypes={allowedTypes}
+        />
+      )}
+
+      {editingRequest && (
+        <CreateRequestForm
+          open={!!editingRequest}
+          onClose={() => setEditingRequest(null)}
+          allowedTypes={allowedTypes.length > 0 ? allowedTypes : ['ISSUE', 'REPLENISHMENT', 'RECEIPT', 'RETURN']}
+          editRequest={editingRequest}
+        />
+      )}
     </div>
   );
 }

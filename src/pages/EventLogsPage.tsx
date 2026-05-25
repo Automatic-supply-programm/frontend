@@ -12,12 +12,14 @@ const { RangePicker } = DatePicker;
 export default function EventLogsPage() {
   const [search, setSearch] = useState('');
   const [userId, setUserId] = useState('');
+  const [userRole, setUserRole] = useState('');
   const [eventType, setEventType] = useState('');
   const [dateRange, setDateRange] = useState<[string, string] | null>(null);
 
   const { data: logs = [], isLoading } = useGetEventLogsQuery({
     search: search || undefined,
     userId: userId || undefined,
+    userRole: userRole || undefined,
     eventType: eventType || undefined,
     startDate: dateRange?.[0],
     endDate: dateRange?.[1],
@@ -28,10 +30,12 @@ export default function EventLogsPage() {
 
   const userOptions = users.map((u) => ({ value: u.id, label: u.fullName }));
   const eventTypeOptions = eventTypes.map((t) => ({ value: t, label: t }));
+  const roleOptions = Object.entries(ROLE_LABELS).map(([k, v]) => ({ value: k, label: v }));
 
   const handleReset = () => {
     setSearch('');
     setUserId('');
+    setUserRole('');
     setEventType('');
     setDateRange(null);
   };
@@ -94,7 +98,17 @@ export default function EventLogsPage() {
             options={userOptions}
           />
         </Col>
-        <Col xs={12} sm={7} md={5}>
+        <Col xs={12} sm={7} md={4}>
+          <Select
+            placeholder="Роль"
+            value={userRole || undefined}
+            onChange={setUserRole}
+            allowClear
+            style={{ width: '100%' }}
+            options={roleOptions}
+          />
+        </Col>
+        <Col xs={12} sm={7} md={4}>
           <Select
             placeholder="Тип события"
             value={eventType || undefined}

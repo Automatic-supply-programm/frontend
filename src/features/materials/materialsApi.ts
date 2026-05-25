@@ -33,19 +33,19 @@ export const materialsApi = baseApi.injectEndpoints({
     }),
     createMaterial: builder.mutation<Material, CreateMaterialRequest>({
       query: (body) => ({ url: '/materials', method: 'POST', body }),
-      invalidatesTags: ['Material'],
+      invalidatesTags: ['Material', 'Dashboard'],
     }),
     updateMaterial: builder.mutation<Material, { id: string; data: Partial<CreateMaterialRequest> }>({
       query: ({ id, data }) => ({ url: `/materials/${id}`, method: 'PUT', body: data }),
-      invalidatesTags: (_r, _e, { id }) => [{ type: 'Material', id }, 'Material'],
+      invalidatesTags: (_r, _e, { id }) => [{ type: 'Material', id }, 'Material', 'Dashboard'],
     }),
     archiveMaterial: builder.mutation<void, string>({
       query: (id) => ({ url: `/materials/${id}`, method: 'DELETE' }),
-      invalidatesTags: ['Material'],
+      invalidatesTags: ['Material', 'Dashboard'],
     }),
     addBatch: builder.mutation<Material, { id: string; batch: Partial<MaterialBatch> }>({
       query: ({ id, batch }) => ({ url: `/materials/${id}/batch`, method: 'POST', body: batch }),
-      invalidatesTags: (_r, _e, { id }) => [{ type: 'Material', id }, 'Material'],
+      invalidatesTags: (_r, _e, { id }) => [{ type: 'Material', id }, 'Material', 'Dashboard'],
     }),
   }),
 });

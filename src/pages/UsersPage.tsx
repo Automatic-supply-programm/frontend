@@ -61,7 +61,16 @@ export default function UsersPage() {
   const handleCreate = async () => {
     try {
       const values = await createForm.validateFields();
-      await createUser(values).unwrap();
+      const payload = {
+        ...values,
+        productionLineIds: values.productionLineIds
+          ? String(values.productionLineIds).split(',').map((s: string) => s.trim()).filter(Boolean)
+          : undefined,
+        managedWarehouseIds: values.managedWarehouseIds
+          ? String(values.managedWarehouseIds).split(',').map((s: string) => s.trim()).filter(Boolean)
+          : undefined,
+      };
+      await createUser(payload).unwrap();
       message.success('Пользователь создан');
       createForm.resetFields();
       setCreateOpen(false);
@@ -75,7 +84,16 @@ export default function UsersPage() {
     if (!editUser) return;
     try {
       const values = await editForm.validateFields();
-      await updateUser({ id: editUser.id, data: values }).unwrap();
+      const payload = {
+        ...values,
+        productionLineIds: values.productionLineIds !== undefined
+          ? String(values.productionLineIds).split(',').map((s: string) => s.trim()).filter(Boolean)
+          : undefined,
+        managedWarehouseIds: values.managedWarehouseIds !== undefined
+          ? String(values.managedWarehouseIds).split(',').map((s: string) => s.trim()).filter(Boolean)
+          : undefined,
+      };
+      await updateUser({ id: editUser.id, data: payload }).unwrap();
       message.success('Пользователь обновлён');
       setEditUser(null);
     } catch (e: unknown) {
@@ -100,7 +118,14 @@ export default function UsersPage() {
 
   const openEdit = (u: User) => {
     setEditUser(u);
-    editForm.setFieldsValue({ fullName: u.fullName, login: u.login, role: u.role });
+    editForm.setFieldsValue({
+      fullName: u.fullName,
+      login: u.login,
+      role: u.role,
+      warehouseId: u.warehouseId ?? '',
+      productionLineIds: u.productionLineIds?.join(', ') ?? '',
+      managedWarehouseIds: u.managedWarehouseIds?.join(', ') ?? '',
+    });
   };
 
   const columns = [
@@ -247,6 +272,30 @@ export default function UsersPage() {
           <Form.Item name="role" label="Роль" rules={[{ required: true }]}>
             <Select options={ROLE_OPTIONS} />
           </Form.Item>
+          <Form.Item
+            noStyle
+            shouldUpdate={(prev, curr) => prev.role !== curr.role}
+          >
+            {({ getFieldValue }) => {
+              const role = getFieldValue('role');
+              if (role === 'WORKER') return (
+                <>
+                  <Form.Item name="warehouseId" label="ID склада">
+                    <Input placeholder="Например: WAREHOUSE_001" />
+                  </Form.Item>
+                  <Form.Item name="productionLineIds" label="Производственные участки (через запятую)">
+                    <Input placeholder="LINE_001, LINE_002" />
+                  </Form.Item>
+                </>
+              );
+              if (role === 'MANAGER') return (
+                <Form.Item name="managedWarehouseIds" label="Подконтрольные склады (через запятую)">
+                  <Input placeholder="WAREHOUSE_001, WAREHOUSE_002" />
+                </Form.Item>
+              );
+              return null;
+            }}
+          </Form.Item>
         </Form>
       </Modal>
 
@@ -270,6 +319,30 @@ export default function UsersPage() {
           </Form.Item>
           <Form.Item name="role" label="Роль">
             <Select options={ROLE_OPTIONS} />
+          </Form.Item>
+          <Form.Item
+            noStyle
+            shouldUpdate={(prev, curr) => prev.role !== curr.role}
+          >
+            {({ getFieldValue }) => {
+              const role = getFieldValue('role');
+              if (role === 'WORKER') return (
+                <>
+                  <Form.Item name="warehouseId" label="ID склада">
+                    <Input placeholder="WAREHOUSE_001" />
+                  </Form.Item>
+                  <Form.Item name="productionLineIds" label="Производственные участки (через запятую)">
+                    <Input placeholder="LINE_001, LINE_002" />
+                  </Form.Item>
+                </>
+              );
+              if (role === 'MANAGER') return (
+                <Form.Item name="managedWarehouseIds" label="Подконтрольные склады (через запятую)">
+                  <Input placeholder="WAREHOUSE_001, WAREHOUSE_002" />
+                </Form.Item>
+              );
+              return null;
+            }}
           </Form.Item>
         </Form>
       </Modal>

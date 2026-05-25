@@ -12,8 +12,10 @@ export default function MaterialsPage() {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('');
   const [status, setStatus] = useState('');
+  const [warehouse, setWarehouse] = useState('');
   const [showArchived, setShowArchived] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [editMode, setEditMode] = useState(false);
   const [showForm, setShowForm] = useState(false);
 
   const { data = [], isLoading } = useGetMaterialsQuery({
@@ -21,6 +23,7 @@ export default function MaterialsPage() {
     search: search || undefined,
     category: category || undefined,
     status: status || undefined,
+    warehouseId: warehouse || undefined,
   });
 
   // Берём объект из актуального списка — обновляется автоматически после любой мутации
@@ -36,25 +39,29 @@ export default function MaterialsPage() {
       <MaterialsTable
         data={data}
         loading={isLoading}
-        onRowClick={(m) => setSelectedId(m.id)}
+        onRowClick={(m) => { setEditMode(false); setSelectedId(m.id); }}
         onAdd={() => setShowForm(true)}
+        onEdit={canAdd ? (m) => { setEditMode(true); setSelectedId(m.id); } : undefined}
         search={search}
         onSearchChange={setSearch}
         categoryFilter={category}
         onCategoryChange={setCategory}
         statusFilter={status}
         onStatusChange={setStatus}
+        warehouseFilter={warehouse}
+        onWarehouseChange={setWarehouse}
         showArchived={showArchived}
         onShowArchivedChange={setShowArchived}
         canAdd={canAdd}
-        onReset={() => { setSearch(''); setCategory(''); setStatus(''); setShowArchived(false); }}
+        onReset={() => { setSearch(''); setCategory(''); setStatus(''); setWarehouse(''); setShowArchived(false); }}
       />
 
       <MaterialCardModal
         material={selectedMaterial}
         open={!!selectedId}
-        onClose={() => setSelectedId(null)}
+        onClose={() => { setSelectedId(null); setEditMode(false); }}
         userRole={user.role}
+        startEditing={editMode}
       />
 
       {canAdd && (

@@ -9,7 +9,8 @@ export type RequestStatus =
   | 'CONFIRMED'
   | 'REJECTED'
   | 'SENT_FOR_REVISION'
-  | 'CANCELLED';
+  | 'CANCELLED'
+  | 'ACCEPTED';
 
 export type MaterialStatus = 'NORMAL' | 'LOW' | 'CRITICAL' | 'OUT_OF_STOCK';
 
@@ -28,6 +29,8 @@ export interface User {
   active: boolean;
   deleted?: boolean;
   warehouseId?: string;
+  productionLineIds?: string[];
+  managedWarehouseIds?: string[];
   // Бэкенд: regDate
   regDate?: string;
   createdAt?: string;
@@ -74,6 +77,7 @@ export interface RequestItem {
   materialName: string;
   quantity: number;
   unit: string;
+  exactLocation?: string;
 }
 
 export interface Request {
@@ -130,12 +134,17 @@ export interface CreateUserRequest {
   password: string;
   role: Role;
   warehouseId?: string;
+  productionLineIds?: string[];
+  managedWarehouseIds?: string[];
 }
 
 export interface UpdateUserRequest {
   fullName?: string;
   login?: string;
   role?: Role;
+  warehouseId?: string;
+  productionLineIds?: string[];
+  managedWarehouseIds?: string[];
 }
 
 export interface CreateMaterialRequest {
@@ -157,5 +166,6 @@ export interface CreateRequestPayload {
   destinationId?: string;
   destinationName?: string;
   items: RequestItem[];
+  orderNumber?: string;
   comment?: string;
 }

@@ -54,7 +54,7 @@ export default function MaterialForm({ open, onClose }: Props) {
         <Form.Item name="criticalStock" label="Критический остаток *" rules={[{ required: true, message: 'Введите критический остаток' }]}>
           <InputNumber min={0} style={{ width: '100%' }} />
         </Form.Item>
-        <Form.Item name="storageLocation" label="Место хранения">
+        <Form.Item name="storageLocation" label="Место хранения *" rules={[{ required: true, message: 'Введите место хранения' }]}>
           <Input placeholder="Стеллаж A" />
         </Form.Item>
         <Form.Item name="description" label="Описание">
