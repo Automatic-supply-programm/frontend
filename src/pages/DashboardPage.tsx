@@ -11,6 +11,7 @@ import { useSelector } from 'react-redux';
 import type { RootState } from '../app/store';
 import { useGetDashboardQuery, useGetDashboardRecentQuery } from '../features/dashboard/dashboardApi';
 import { useGetMyRequestsQuery, useGetIncomingRequestsQuery, useChangeRequestStatusMutation } from '../features/requests/requestsApi';
+import { useGetProductionLineInventoryQuery } from '../features/inventory/inventoryApi';
 import dayjs from 'dayjs';
 import { ROLE_LABELS, REQUEST_STATUS_LABELS, REQUEST_STATUS_COLOR, REQUEST_TYPE_LABELS, EVENT_TYPE_LABELS, RESULT_LABELS } from '../utils/statusLabels';
 import { getApiErrorMessage } from '../utils/apiError';
@@ -58,6 +59,10 @@ export default function DashboardPage() {
   );
   const { data: myRequests = [], isLoading: myLoading } = useGetMyRequestsQuery(
     {}, { skip: isAdmin || user?.role === 'WORKER' || user?.role === 'MANAGER' }
+  );
+  const isEmployee = user?.role === 'EMPLOYEE';
+  const { data: inventory = [], isLoading: inventoryLoading } = useGetProductionLineInventoryQuery(
+    undefined, { skip: !isEmployee }
   );
   const isManager = user?.role === 'MANAGER';
   const { data: incomingRequests = [], isLoading: incomingLoading } = useGetIncomingRequestsQuery(
@@ -112,6 +117,7 @@ export default function DashboardPage() {
     // MANAGER
     return [
       { title: 'Заявки на пополнение', value: stats.totalReplenishment ?? '—', icon: <FileTextOutlined />, color: '#1677ff' },
+      { title: 'Оформление поступлений', value: stats.pendingReceipts ?? '—', icon: <InboxOutlined />, color: '#1677ff' },
       { title: 'На рассмотрении', value: stats.pendingApproval ?? '—', icon: <FileTextOutlined />, color: '#fa8c16' },
       { title: 'Одобрено', value: stats.approved ?? '—', icon: <FileTextOutlined />, color: '#52c41a' },
       { title: 'Отклонено', value: stats.rejected ?? '—', icon: <WarningOutlined />, color: '#f5222d' },
@@ -318,6 +324,27 @@ export default function DashboardPage() {
               size="small"
               pagination={false}
               locale={{ emptyText: 'Нет входящих заявок' }}
+            />
+          )}
+        </Card>
+      )}
+
+      {isEmployee && (
+        <Card title="Остатки на производственном участке" style={{ marginBottom: 24 }}>
+          {inventoryLoading ? (
+            <Spin />
+          ) : (
+            <Table
+              dataSource={inventory}
+              rowKey="materialId"
+              size="small"
+              pagination={false}
+              locale={{ emptyText: 'Нет материалов на участке' }}
+              columns={[
+                { title: 'Материал', dataIndex: 'materialName', key: 'materialName' },
+                { title: 'Кол-во', dataIndex: 'quantity', key: 'quantity', width: 100 },
+                { title: 'Ед.', dataIndex: 'unit', key: 'unit', width: 80 },
+              ]}
             />
           )}
         </Card>

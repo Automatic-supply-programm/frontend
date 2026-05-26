@@ -77,6 +77,10 @@ export default function RequestModal({ request, open, onClose, userRole, onEdit 
         if (status === 'UNDER_CONSIDERATION' || status === 'SENT_FOR_REVISION') return (
           <Space wrap>
             {onEdit && <Button icon={<EditOutlined />} onClick={onEdit}>Редактировать</Button>}
+            {status === 'SENT_FOR_REVISION' && (
+              <Button type="primary" icon={<RollbackOutlined />} loading={loading}
+                onClick={() => doChangeStatus('UNDER_CONSIDERATION')}>Отправить на рассмотрение</Button>
+            )}
             <Popconfirm title="Отменить заявку?" onConfirm={() => doChangeStatus('CANCELLED')} okText="Да" cancelText="Нет">
               <Button danger icon={<StopOutlined />} loading={loading}>Отменить</Button>
             </Popconfirm>
@@ -137,6 +141,10 @@ export default function RequestModal({ request, open, onClose, userRole, onEdit 
       if (editable || cancellable) return (
         <Space wrap>
           {editable && onEdit && <Button icon={<EditOutlined />} onClick={onEdit}>Редактировать</Button>}
+          {status === 'SENT_FOR_REVISION' && (
+            <Button type="primary" icon={<RollbackOutlined />} loading={loading}
+              onClick={() => doChangeStatus('UNDER_CONSIDERATION')}>Отправить на рассмотрение</Button>
+          )}
           {cancellable && (
             <Popconfirm title="Отменить заявку?" onConfirm={() => doChangeStatus('CANCELLED')} okText="Да" cancelText="Нет">
               <Button danger icon={<StopOutlined />} loading={loading}>Отменить</Button>

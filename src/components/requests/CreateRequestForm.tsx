@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import {
   Modal, Form, Select, Input, Button, Space, InputNumber,
-  Divider, message
+  Divider, message, DatePicker
 } from 'antd';
+import dayjs from 'dayjs';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../../app/store';
@@ -29,6 +30,8 @@ interface ItemRow {
   quantity: number;
   unit: string;
   exactLocation?: string;
+  receiptActNumber?: string;
+  expiryDate?: string;
 }
 
 export default function CreateRequestForm({ open, onClose, defaultType, allowedTypes, editRequest, defaultMaterial }: Props) {
@@ -50,6 +53,8 @@ export default function CreateRequestForm({ open, onClose, defaultType, allowedT
           quantity: i.quantity,
           unit: i.unit,
           exactLocation: i.exactLocation ?? '',
+          receiptActNumber: i.receiptActNumber ?? '',
+          expiryDate: i.expiryDate ?? '',
         }))
       );
     } else if (open && !editRequest && defaultMaterial) {
@@ -321,6 +326,22 @@ export default function CreateRequestForm({ open, onClose, defaultType, allowedT
               placeholder="Размещение"
               style={{ width: 130 }}
             />
+            {currentType === 'RECEIPT' && (
+              <>
+                <Input
+                  value={item.receiptActNumber ?? ''}
+                  onChange={(e) => updateItem(idx, 'receiptActNumber', e.target.value)}
+                  placeholder="Номер акта"
+                  style={{ width: 120 }}
+                />
+                <DatePicker
+                  value={item.expiryDate ? dayjs(item.expiryDate) : null}
+                  onChange={(d) => updateItem(idx, 'expiryDate', d ? d.format('YYYY-MM-DD') : '')}
+                  placeholder="Срок годности"
+                  style={{ width: 140 }}
+                />
+              </>
+            )}
             <Button
               danger
               icon={<DeleteOutlined />}

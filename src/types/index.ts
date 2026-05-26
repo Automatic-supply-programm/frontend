@@ -78,6 +78,8 @@ export interface RequestItem {
   quantity: number;
   unit: string;
   exactLocation?: string;
+  receiptActNumber?: string;
+  expiryDate?: string;
 }
 
 export interface Request {

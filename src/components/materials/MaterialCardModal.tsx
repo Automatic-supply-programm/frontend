@@ -54,7 +54,6 @@ export default function MaterialCardModal({ material, open, onClose, userRole, s
 
   const canEdit = userRole === 'ADMIN' || userRole === 'WORKER';
   const canArchive = userRole === 'ADMIN';
-  const canEditBatches = userRole === 'ADMIN';
   const canAddBatch = userRole === 'ADMIN' || userRole === 'WORKER';
   const canReplenish = userRole === 'ADMIN' || userRole === 'WORKER';
   const canCreateIssue = userRole === 'ADMIN' || userRole === 'EMPLOYEE';
@@ -264,7 +263,7 @@ export default function MaterialCardModal({ material, open, onClose, userRole, s
           <Form.Item name="expiryDate" label="Срок годности">
             <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
           </Form.Item>
-          {canEditBatches && (
+          {canAddBatch && (
             <>
               <Form.Item name="acceptedByName" label="Принял">
                 <Input />
