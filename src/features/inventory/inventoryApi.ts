@@ -11,7 +11,7 @@ export const inventoryApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getProductionLineInventory: builder.query<InventoryEntry[], void>({
       query: () => '/inventory/production-line',
-      transformResponse: (r: { data: InventoryEntry[] }) => r.data ?? [],
+      providesTags: ['Inventory'],
     }),
   }),
 });

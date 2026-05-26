@@ -64,7 +64,7 @@ export const requestsApi = baseApi.injectEndpoints({
     }),
     confirmRequest: builder.mutation<void, string>({
       query: (id) => ({ url: `/requests/${id}/confirm`, method: 'POST' }),
-      invalidatesTags: ['Request', 'Dashboard', 'Material'],
+      invalidatesTags: ['Request', 'Dashboard', 'Material', 'Inventory'],
     }),
     archiveRequest: builder.mutation<void, string>({
       query: (id) => ({ url: `/requests/${id}/archive`, method: 'POST' }),

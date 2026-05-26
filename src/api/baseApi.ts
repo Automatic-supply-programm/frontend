@@ -41,6 +41,6 @@ const realBaseQuery: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQueryErro
 export const baseApi = createApi({
   reducerPath: 'api',
   baseQuery: IS_MOCK ? mockBaseQuery : realBaseQuery,
-  tagTypes: ['Material', 'Request', 'User', 'EventLog', 'Dashboard', 'Order'],
+  tagTypes: ['Material', 'Request', 'User', 'EventLog', 'Dashboard', 'Order', 'Inventory'],
   endpoints: () => ({}),
 });

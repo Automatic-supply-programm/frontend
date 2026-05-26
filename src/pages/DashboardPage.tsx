@@ -66,7 +66,7 @@ export default function DashboardPage() {
   );
   const isManager = user?.role === 'MANAGER';
   const { data: incomingRequests = [], isLoading: incomingLoading } = useGetIncomingRequestsQuery(
-    isManager ? { type: 'REPLENISHMENT' } : {},
+    {},
     { skip: isAdmin || user?.role === 'EMPLOYEE' }
   );
 
