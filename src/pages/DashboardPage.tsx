@@ -32,13 +32,14 @@ interface DashboardStats {
   // WORKER
   pendingRequests?: number;
   pendingReceipts?: number;
-  warehouseId?: string;
-  productionLineIds?: string[];
   // EMPLOYEE
   myRequests?: number;
   underConsideration?: number;
   waitingConfirmation?: number;
   rejected?: number;
+  // shared WORKER / EMPLOYEE
+  warehouseId?: string;
+  productionLineIds?: string[];
   // MANAGER
   totalReplenishment?: number;
   pendingApproval?: number;
@@ -220,7 +221,17 @@ export default function DashboardPage() {
     <div>
       <Title level={4} style={{ marginBottom: 20 }}>Главная</Title>
 
-      {user.role === 'WORKER' && !isLoading && (stats.warehouseId || stats.productionLineIds?.length) && (
+      {user.role === 'WORKER' && !isLoading && stats.warehouseId && (
+        <Card style={{ marginBottom: 16 }}>
+          <Space wrap>
+            <span><Typography.Text type="secondary">Склад:</Typography.Text>{' '}
+              <Tag color="blue">{stats.warehouseId}</Tag>
+            </span>
+          </Space>
+        </Card>
+      )}
+
+      {user.role === 'EMPLOYEE' && !isLoading && (stats.warehouseId || stats.productionLineIds?.length) && (
         <Card style={{ marginBottom: 16 }}>
           <Space wrap>
             {stats.warehouseId && (
@@ -229,8 +240,8 @@ export default function DashboardPage() {
               </span>
             )}
             {stats.productionLineIds && stats.productionLineIds.length > 0 && (
-              <span><Typography.Text type="secondary">Производственные участки:</Typography.Text>{' '}
-                {stats.productionLineIds.map((id) => <Tag key={id}>{id}</Tag>)}
+              <span><Typography.Text type="secondary">Производственный участок:</Typography.Text>{' '}
+                {stats.productionLineIds.map((id) => <Tag key={id} color="green">{id}</Tag>)}
               </span>
             )}
           </Space>

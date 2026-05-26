@@ -13,7 +13,7 @@ import {
   useGetAdminUsersQuery, useGetManagerUsersQuery,
   useCreateUserMutation, useUpdateUserMutation, useDeleteUserMutation,
   useToggleUserAccessMutation, useChangePasswordMutation,
-  useGetWarehousesDirectoryQuery,
+  useGetWarehousesDirectoryQuery, useGetProductionLinesDirectoryQuery,
 } from '../features/users/usersApi';
 import type { User, Role } from '../types';
 import { ROLE_LABELS } from '../utils/statusLabels';
@@ -51,6 +51,9 @@ export default function UsersPage() {
     label: w.warehouseId,
   }));
 
+  const { data: productionLinesDir = [] } = useGetProductionLinesDirectoryQuery();
+  const productionLineOptions = productionLinesDir.map((id) => ({ value: id, label: id }));
+
   const allUsers = isAdmin ? adminUsers : managerUsers;
   const loading = isAdmin ? loadingAdmin : loadingManager;
 
@@ -71,8 +74,8 @@ export default function UsersPage() {
       const values = await createForm.validateFields();
       const payload = {
         ...values,
-        productionLineIds: values.productionLineIds
-          ? String(values.productionLineIds).split(',').map((s: string) => s.trim()).filter(Boolean)
+        productionLineIds: Array.isArray(values.productionLineIds) && values.productionLineIds.length
+          ? values.productionLineIds
           : undefined,
       };
       await createUser(payload).unwrap();
@@ -91,8 +94,8 @@ export default function UsersPage() {
       const values = await editForm.validateFields();
       const payload = {
         ...values,
-        productionLineIds: values.productionLineIds !== undefined
-          ? String(values.productionLineIds).split(',').map((s: string) => s.trim()).filter(Boolean)
+        productionLineIds: Array.isArray(values.productionLineIds) && values.productionLineIds.length
+          ? values.productionLineIds
           : undefined,
       };
       await updateUser({ id: editUser.id, data: payload }).unwrap();
@@ -125,7 +128,7 @@ export default function UsersPage() {
       login: u.login,
       role: u.role,
       warehouseId: u.warehouseId ?? '',
-      productionLineIds: u.productionLineIds?.join(', ') ?? '',
+      productionLineIds: u.productionLineIds ?? [],
       managedWarehouseIds: u.managedWarehouseIds ?? [],
     });
   };
@@ -293,8 +296,19 @@ export default function UsersPage() {
             {({ getFieldValue }) => {
               const role = getFieldValue('role');
               if (role === 'WORKER') return (
+                <Form.Item name="warehouseId" label="Склад" rules={[{ required: true, message: 'Укажите склад' }]}>
+                  <AutoComplete
+                    options={warehouseOptions}
+                    placeholder="Выберите или введите ID склада"
+                    filterOption={(input, opt) =>
+                      (opt?.value ?? '').toLowerCase().includes(input.toLowerCase())
+                    }
+                  />
+                </Form.Item>
+              );
+              if (role === 'EMPLOYEE') return (
                 <>
-                  <Form.Item name="warehouseId" label="Склад">
+                  <Form.Item name="warehouseId" label="Склад" rules={[{ required: true, message: 'Укажите склад' }]}>
                     <AutoComplete
                       options={warehouseOptions}
                       placeholder="Выберите или введите ID склада"
@@ -303,8 +317,16 @@ export default function UsersPage() {
                       }
                     />
                   </Form.Item>
-                  <Form.Item name="productionLineIds" label="Производственные участки (через запятую)">
-                    <Input placeholder="LINE_001, LINE_002" />
+                  <Form.Item name="productionLineIds" label="Производственный участок" rules={[{ required: true, message: 'Укажите участок' }]}>
+                    <Select
+                      mode="tags"
+                      options={productionLineOptions}
+                      placeholder="Выберите или введите ID участка"
+                      filterOption={(input, opt) =>
+                        (opt?.value ?? '').toLowerCase().includes(input.toLowerCase())
+                      }
+                      allowClear
+                    />
                   </Form.Item>
                 </>
               );
@@ -355,8 +377,19 @@ export default function UsersPage() {
             {({ getFieldValue }) => {
               const role = getFieldValue('role');
               if (role === 'WORKER') return (
+                <Form.Item name="warehouseId" label="Склад" rules={[{ required: true, message: 'Укажите склад' }]}>
+                  <AutoComplete
+                    options={warehouseOptions}
+                    placeholder="Выберите или введите ID склада"
+                    filterOption={(input, opt) =>
+                      (opt?.value ?? '').toLowerCase().includes(input.toLowerCase())
+                    }
+                  />
+                </Form.Item>
+              );
+              if (role === 'EMPLOYEE') return (
                 <>
-                  <Form.Item name="warehouseId" label="Склад">
+                  <Form.Item name="warehouseId" label="Склад" rules={[{ required: true, message: 'Укажите склад' }]}>
                     <AutoComplete
                       options={warehouseOptions}
                       placeholder="Выберите или введите ID склада"
@@ -365,8 +398,16 @@ export default function UsersPage() {
                       }
                     />
                   </Form.Item>
-                  <Form.Item name="productionLineIds" label="Производственные участки (через запятую)">
-                    <Input placeholder="LINE_001, LINE_002" />
+                  <Form.Item name="productionLineIds" label="Производственный участок" rules={[{ required: true, message: 'Укажите участок' }]}>
+                    <Select
+                      mode="tags"
+                      options={productionLineOptions}
+                      placeholder="Выберите или введите ID участка"
+                      filterOption={(input, opt) =>
+                        (opt?.value ?? '').toLowerCase().includes(input.toLowerCase())
+                      }
+                      allowClear
+                    />
                   </Form.Item>
                 </>
               );

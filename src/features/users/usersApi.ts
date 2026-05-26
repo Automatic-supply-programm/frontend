@@ -21,6 +21,11 @@ export const usersApi = baseApi.injectEndpoints({
       query: () => '/user/warehouses',
       providesTags: ['User'],
     }),
+    // Справочник производственных участков (уникальные productionLineId из профилей активных EMPLOYEE)
+    getProductionLinesDirectory: builder.query<string[], void>({
+      query: () => '/user/production-lines',
+      providesTags: ['User'],
+    }),
     createUser: builder.mutation<User, CreateUserRequest>({
       query: (body) => ({ url: '/admin/users', method: 'POST', body }),
       invalidatesTags: ['User'],
@@ -54,6 +59,7 @@ export const {
   useGetManagerUsersQuery,
   useGetUsersDirectoryQuery,
   useGetWarehousesDirectoryQuery,
+  useGetProductionLinesDirectoryQuery,
   useCreateUserMutation,
   useUpdateUserMutation,
   useChangePasswordMutation,

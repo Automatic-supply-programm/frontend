@@ -83,7 +83,7 @@ export default function CreateRequestForm({ open, onClose, defaultType, allowedT
       : managers;
 
   const destinationUsers =
-    currentType === 'REPLENISHMENT' ? filteredManagers
+    (currentType === 'REPLENISHMENT' || currentType === 'RECEIPT') ? filteredManagers
     : (currentType === 'ISSUE' || currentType === 'RETURN') ? workers
     : [];
 
@@ -109,22 +109,14 @@ export default function CreateRequestForm({ open, onClose, defaultType, allowedT
         type: initType,
         sourceId: defaultSourceId,
       };
-      if (initType === 'RECEIPT' && user) {
-        initial.destinationId = user.id;
-        initial.destinationName = user.fullName;
-      }
       form.setFieldsValue(initial);
     } else if (!open) {
       form.resetFields();
     }
   }, [open, editRequest, form, defaultSourceId, user, defaultType, allowedTypes]);
 
-  const handleTypeChange = (type: RequestType) => {
-    if (type === 'RECEIPT' && user) {
-      form.setFieldsValue({ destinationId: user.id, destinationName: user.fullName });
-    } else {
-      form.setFieldsValue({ destinationId: undefined, destinationName: '' });
-    }
+  const handleTypeChange = (_type: RequestType) => {
+    form.setFieldsValue({ destinationId: undefined, destinationName: '' });
   };
 
   const handleDestinationChange = (userId: string) => {
@@ -219,8 +211,7 @@ export default function CreateRequestForm({ open, onClose, defaultType, allowedT
   };
 
   const destinationLabel =
-    currentType === 'REPLENISHMENT' ? 'Менеджер-получатель'
-    : currentType === 'RECEIPT' ? 'Сотрудник склада (вы)'
+    (currentType === 'REPLENISHMENT' || currentType === 'RECEIPT') ? 'Менеджер-получатель'
     : 'Работник склада-получатель';
 
   return (
@@ -253,38 +244,36 @@ export default function CreateRequestForm({ open, onClose, defaultType, allowedT
             />
           </Form.Item>
 
-          <Form.Item name="sourceName" label="Источник (название склада / участка)">
-            <Input placeholder="Склад №1 или Участок сборки" />
-          </Form.Item>
+          {currentType === 'RECEIPT' && (
+            <Form.Item name="sourceName" label="Поставщик">
+              <Input placeholder="Название поставщика" />
+            </Form.Item>
+          )}
 
           <Form.Item name="destinationName" hidden>
             <Input />
           </Form.Item>
 
-          {currentType === 'RECEIPT' ? (
-            <Form.Item name="destinationId" label={destinationLabel}>
-              <Input disabled />
-            </Form.Item>
-          ) : (
-            <Form.Item
-              name="destinationId"
-              label={destinationLabel}
-              rules={[{ required: true, message: 'Выберите получателя из списка' }]}
-            >
-              <Select
-                options={destinationOptions}
-                showSearch
-                filterOption={(input, opt) =>
-                  (opt?.label ?? '').toLowerCase().includes(input.toLowerCase())
-                }
-                placeholder={
-                  currentType === 'REPLENISHMENT' ? 'Выберите менеджера' : 'Выберите работника склада'
-                }
-                onChange={handleDestinationChange}
-                notFoundContent="Пользователи не найдены"
-              />
-            </Form.Item>
-          )}
+          <Form.Item
+            name="destinationId"
+            label={destinationLabel}
+            rules={[{ required: true, message: 'Выберите получателя из списка' }]}
+          >
+            <Select
+              options={destinationOptions}
+              showSearch
+              filterOption={(input, opt) =>
+                (opt?.label ?? '').toLowerCase().includes(input.toLowerCase())
+              }
+              placeholder={
+                (currentType === 'REPLENISHMENT' || currentType === 'RECEIPT')
+                  ? 'Выберите менеджера'
+                  : 'Выберите работника склада'
+              }
+              onChange={handleDestinationChange}
+              notFoundContent="Пользователи не найдены"
+            />
+          </Form.Item>
 
           {currentType === 'RECEIPT' && (
             <Form.Item name="orderNumber" label="Номер заказа">
