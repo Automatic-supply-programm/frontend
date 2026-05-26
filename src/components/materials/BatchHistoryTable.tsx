@@ -1,7 +1,18 @@
-import { Table, Button } from 'antd';
+import { Table, Button, Tag } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import type { MaterialBatch } from '../../types';
 import dayjs from 'dayjs';
+
+const SOURCE_LABELS: Record<string, string> = {
+  RECEIPT: 'Поступление',
+  RETURN: 'Возврат',
+  MANUAL: 'Вручную',
+};
+const SOURCE_COLORS: Record<string, string> = {
+  RECEIPT: 'blue',
+  RETURN: 'orange',
+  MANUAL: 'default',
+};
 
 interface Props {
   batches: MaterialBatch[];
@@ -28,6 +39,11 @@ export default function BatchHistoryTable({ batches, canAdd, onAdd }: Props) {
       key: 'expiryDate',
       width: 130,
       render: (v: string) => v ? dayjs(v).format('DD.MM.YYYY') : '—',
+    },
+    { title: 'Источник', dataIndex: 'sourceType', key: 'sourceType', width: 120,
+      render: (v: string) => v
+        ? <Tag color={SOURCE_COLORS[v] ?? 'default'}>{SOURCE_LABELS[v] ?? v}</Tag>
+        : <Tag color="default">Вручную</Tag>,
     },
     { title: 'Акт', dataIndex: 'receiptActNumber', key: 'receiptActNumber', width: 110 },
     { title: 'Принял', dataIndex: 'acceptedByName', key: 'acceptedByName' },

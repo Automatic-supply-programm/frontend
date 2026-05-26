@@ -60,7 +60,7 @@ export const requestsApi = baseApi.injectEndpoints({
         if (comment) q.set('comment', comment);
         return { url: `/requests/${id}/status?${q.toString()}`, method: 'POST' };
       },
-      invalidatesTags: ['Request', 'Dashboard', 'Material'],
+      invalidatesTags: ['Request', 'Dashboard', 'Material', 'Inventory'],
     }),
     confirmRequest: builder.mutation<void, string>({
       query: (id) => ({ url: `/requests/${id}/confirm`, method: 'POST' }),

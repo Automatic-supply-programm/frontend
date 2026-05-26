@@ -50,6 +50,7 @@ export interface MaterialBatch {
   acceptedByName?: string;
   confirmedByUserId?: string;
   confirmedByName?: string;
+  sourceType?: 'MANUAL' | 'RECEIPT' | 'RETURN';
 }
 
 export interface Material {
