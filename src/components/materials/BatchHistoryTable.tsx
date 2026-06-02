@@ -47,7 +47,6 @@ export default function BatchHistoryTable({ batches, canAdd, onAdd }: Props) {
     },
     { title: 'Акт', dataIndex: 'receiptActNumber', key: 'receiptActNumber', width: 110 },
     { title: 'Принял', dataIndex: 'acceptedByName', key: 'acceptedByName' },
-    { title: 'Подтвердил', dataIndex: 'confirmedByName', key: 'confirmedByName' },
   ];
 
   return (
