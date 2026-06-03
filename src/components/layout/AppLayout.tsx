@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Layout, Menu, Avatar, Dropdown, Typography, Space, theme } from 'antd';
+import { useState, useEffect } from 'react';
+import { Layout, Menu, Avatar, Dropdown, Typography, Space, theme, Badge, Tooltip } from 'antd';
 import {
   HomeOutlined,
   InboxOutlined,
@@ -10,6 +10,7 @@ import {
   UserOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
+  MessageOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -19,6 +20,10 @@ import { useLogoutMutation } from '../../features/auth/authApi';
 import { baseApi } from '../../api/baseApi';
 import { getNavItems } from '../../utils/roleAccess';
 import { ROLE_LABELS } from '../../utils/statusLabels';
+import { toggleMessenger, setUnreadCounts, resetMessenger } from '../../features/messenger/messengerSlice';
+import { useGetUnreadCountQuery } from '../../features/messenger/messengerApi';
+import { useMessengerSocket } from '../../features/messenger/useMessengerSocket';
+import MessengerWidget from '../../features/messenger/MessengerWidget';
 
 const { Header, Sider, Content } = Layout;
 
@@ -38,6 +43,14 @@ export default function AppLayout() {
   const user = useSelector((s: RootState) => s.auth.user);
   const [logoutMutation] = useLogoutMutation();
   const { token: designToken } = theme.useToken();
+  const messengerOpen = useSelector((s: RootState) => s.messenger.isOpen);
+  const unreadTotal = useSelector((s: RootState) => s.messenger.unreadTotal);
+
+  const { sendMessage } = useMessengerSocket();
+  const { data: unreadData } = useGetUnreadCountQuery(undefined, { skip: !user });
+  useEffect(() => {
+    if (unreadData) dispatch(setUnreadCounts(unreadData));
+  }, [unreadData, dispatch]);
 
   const navItems = user ? getNavItems(user.role) : [];
 
@@ -49,6 +62,7 @@ export default function AppLayout() {
   const handleLogout = async () => {
     try { await logoutMutation(); } catch { /* ignore */ }
     dispatch(logout());
+    dispatch(resetMessenger());
     dispatch(baseApi.util.resetApiState());
     navigate('/login');
   };
@@ -70,7 +84,12 @@ export default function AppLayout() {
         collapsible
         collapsed={collapsed}
         trigger={null}
-        style={{ background: designToken.colorBgContainer, borderRight: `1px solid ${designToken.colorBorderSecondary}` }}
+        style={{
+          background: designToken.colorBgContainer,
+          borderRight: `1px solid ${designToken.colorBorderSecondary}`,
+          display: 'flex',
+          flexDirection: 'column',
+        }}
         width={220}
       >
         <div style={{
@@ -91,7 +110,7 @@ export default function AppLayout() {
         <Menu
           mode="inline"
           selectedKeys={[selectedKey]}
-          style={{ border: 'none', marginTop: 8 }}
+          style={{ border: 'none', marginTop: 8, flex: 1 }}
           items={navItems.map((item) => ({
             key: item.key,
             icon: ICON_MAP[item.icon],
@@ -99,6 +118,47 @@ export default function AppLayout() {
             onClick: () => navigate(item.path),
           }))}
         />
+
+        {/* Messenger button at bottom of sidebar */}
+        <div style={{
+          borderTop: `1px solid ${designToken.colorBorderSecondary}`,
+          padding: '12px 0',
+          display: 'flex',
+          justifyContent: 'center',
+        }}>
+          <Tooltip title={collapsed ? 'Мессенджер' : ''} placement="right">
+            <div
+              onClick={() => dispatch(toggleMessenger())}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: collapsed ? 0 : 10,
+                padding: collapsed ? '8px' : '8px 24px',
+                cursor: 'pointer',
+                borderRadius: 6,
+                color: messengerOpen ? designToken.colorPrimary : designToken.colorText,
+                background: messengerOpen ? designToken.colorPrimaryBg : 'transparent',
+                transition: 'all 0.2s',
+                width: collapsed ? 'auto' : '100%',
+              }}
+              onMouseEnter={(e) =>
+                !messengerOpen && (e.currentTarget.style.background = designToken.colorBgTextHover)
+              }
+              onMouseLeave={(e) =>
+                !messengerOpen && (e.currentTarget.style.background = 'transparent')
+              }
+            >
+              <Badge count={unreadTotal} size="small" overflowCount={99}>
+                <MessageOutlined style={{ fontSize: 18 }} />
+              </Badge>
+              {!collapsed && (
+                <Typography.Text style={{ fontSize: 14, color: 'inherit' }}>
+                  Мессенджер
+                </Typography.Text>
+              )}
+            </div>
+          </Tooltip>
+        </div>
       </Sider>
 
       <Layout>
@@ -139,6 +199,10 @@ export default function AppLayout() {
           <Outlet />
         </Content>
       </Layout>
+
+      {messengerOpen && user && (
+        <MessengerWidget collapsed={collapsed} sendMessage={sendMessage} />
+      )}
     </Layout>
   );
 }
