@@ -67,7 +67,7 @@ const messengerSlice = createSlice({
         state.conversations[otherUserId] = [...existing, message];
       }
 
-      if (message.senderId !== currentUserId) {
+      if (message.senderId !== currentUserId && otherUserId !== state.activeUserId) {
         state.unreadTotal += 1;
         state.unreadBySender[message.senderId] =
           (state.unreadBySender[message.senderId] ?? 0) + 1;
