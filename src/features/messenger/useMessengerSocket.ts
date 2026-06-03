@@ -14,8 +14,12 @@ export function useMessengerSocket() {
   useEffect(() => {
     if (!token || !currentUserId) return;
 
+    // В проде VITE_API_BASE_URL = https://xxx.railway.app/api → ws на том же хосте
+    const apiBase = import.meta.env.VITE_API_BASE_URL ?? '/api';
+    const wsUrl = `${apiBase}/ws`;
+
     const client = new Client({
-      webSocketFactory: () => new SockJS('/api/ws'),
+      webSocketFactory: () => new SockJS(wsUrl),
       connectHeaders: { Authorization: `Bearer_${token}` },
       reconnectDelay: 5000,
       onConnect: () => {
